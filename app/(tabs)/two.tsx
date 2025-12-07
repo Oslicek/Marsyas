@@ -5,11 +5,13 @@ import { SongEditor } from '@/components/SongEditor';
 import { SongView } from '@/components/SongView';
 import { Text, View } from '@/components/Themed';
 import { useSelectedSong } from '@/hooks/use-selected-song';
+import { useSettings } from '@/hooks/use-settings';
 import { parseChordPro } from '@/services/chordpro-parser';
 import { createSongStorageService } from '@/services/song-storage-runtime';
 
 export default function SongScreen() {
   const { selectedSong, songContent, songFilename, updateSong } = useSelectedSong();
+  const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
 
   const handleEdit = useCallback(() => {
@@ -41,10 +43,10 @@ export default function SongScreen() {
 
   if (!selectedSong || !songContent) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { backgroundColor: settings.backgroundColor }]}>
         <Text style={styles.emptyIcon}>🎵</Text>
-        <Text style={styles.emptyText}>No song selected</Text>
-        <Text style={styles.emptyHint}>
+        <Text style={[styles.emptyText, { color: settings.lyrics.color }]}>No song selected</Text>
+        <Text style={[styles.emptyHint, { color: settings.lyrics.color }]}>
           Tap a song from the Songs tab to view it here
         </Text>
       </View>
@@ -62,7 +64,7 @@ export default function SongScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: settings.backgroundColor }]}>
       {/* Edit button */}
       <View style={styles.toolbar}>
         <Pressable
