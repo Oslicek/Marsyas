@@ -243,5 +243,67 @@ describe('SongStorageService', () => {
       expect(songs[0].filename).toBe('Song.pro');
     });
   });
+
+  describe('saveSong', () => {
+    it('should save song content to file system', async () => {
+      const filename = 'Test Song.pro';
+      const content = '{title: Test Song}\n[C]Hello [G]World';
+
+      await service.saveSong(filename, content);
+
+      const savedContent = fileSystem._getFile(
+        fileSystem.songsDirectory + filename
+      );
+      expect(savedContent).toBe(content);
+    });
+
+    it('should overwrite existing song content', async () => {
+      const filename = 'Test Song.pro';
+      const originalContent = '{title: Original}';
+      const updatedContent = '{title: Updated}\n[Am]New lyrics';
+
+      fileSystem._setFile(fileSystem.songsDirectory + filename, originalContent);
+
+      await service.saveSong(filename, updatedContent);
+
+      const savedContent = fileSystem._getFile(
+        fileSystem.songsDirectory + filename
+      );
+      expect(savedContent).toBe(updatedContent);
+    });
+
+    it('should create file if it does not exist', async () => {
+      const filename = 'New Song.pro';
+      const content = '{title: New Song}';
+
+      const existsBefore = await fileSystem.fileExists(
+        fileSystem.songsDirectory + filename
+      );
+      expect(existsBefore).toBe(false);
+
+      await service.saveSong(filename, content);
+
+      const existsAfter = await fileSystem.fileExists(
+        fileSystem.songsDirectory + filename
+      );
+      expect(existsAfter).toBe(true);
+    });
+  });
+
+  describe('readSong', () => {
+    it('should read song content from file system', async () => {
+      const filename = 'Test Song.pro';
+      const content = '{title: Test Song}\n[C]Hello [G]World';
+      fileSystem._setFile(fileSystem.songsDirectory + filename, content);
+
+      const result = await service.readSong(filename);
+
+      expect(result).toBe(content);
+    });
+
+    it('should throw error if song does not exist', async () => {
+      await expect(service.readSong('NonExistent.pro')).rejects.toThrow();
+    });
+  });
 });
 

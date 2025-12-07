@@ -83,6 +83,22 @@ export class SongStorageService {
         path: this.fileSystem.songsDirectory + filename,
       }));
   }
+
+  /**
+   * Save song content to file system
+   */
+  async saveSong(filename: string, content: string): Promise<void> {
+    const path = this.fileSystem.songsDirectory + filename;
+    await this.fileSystem.writeFile(path, content);
+  }
+
+  /**
+   * Read song content from file system
+   */
+  async readSong(filename: string): Promise<string> {
+    const path = this.fileSystem.songsDirectory + filename;
+    return await this.fileSystem.readFile(path);
+  }
 }
 
 

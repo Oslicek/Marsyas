@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
 import { ParsedSong } from '@/services/chordpro-types';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 
 interface SelectedSongContextType {
   selectedSong: ParsedSong | null;
   songContent: string | null;
-  selectSong: (song: ParsedSong, content: string) => void;
+  songFilename: string | null;
+  selectSong: (song: ParsedSong, content: string, filename: string) => void;
+  updateSong: (song: ParsedSong, content: string) => void;
   clearSelection: () => void;
 }
 
@@ -19,8 +21,15 @@ export function SelectedSongProvider({
 }) {
   const [selectedSong, setSelectedSong] = useState<ParsedSong | null>(null);
   const [songContent, setSongContent] = useState<string | null>(null);
+  const [songFilename, setSongFilename] = useState<string | null>(null);
 
-  const selectSong = useCallback((song: ParsedSong, content: string) => {
+  const selectSong = useCallback((song: ParsedSong, content: string, filename: string) => {
+    setSelectedSong(song);
+    setSongContent(content);
+    setSongFilename(filename);
+  }, []);
+
+  const updateSong = useCallback((song: ParsedSong, content: string) => {
     setSelectedSong(song);
     setSongContent(content);
   }, []);
@@ -28,11 +37,12 @@ export function SelectedSongProvider({
   const clearSelection = useCallback(() => {
     setSelectedSong(null);
     setSongContent(null);
+    setSongFilename(null);
   }, []);
 
   return (
     <SelectedSongContext.Provider
-      value={{ selectedSong, songContent, selectSong, clearSelection }}
+      value={{ selectedSong, songContent, songFilename, selectSong, updateSong, clearSelection }}
     >
       {children}
     </SelectedSongContext.Provider>
@@ -46,4 +56,3 @@ export function useSelectedSong() {
   }
   return context;
 }
-

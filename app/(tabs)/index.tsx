@@ -22,8 +22,8 @@ export default function SongsScreen() {
       // Parse the song
       const parsedSong = parseChordPro(content);
       
-      // Select and navigate
-      selectSong(parsedSong, content);
+      // Select and navigate (include filename for saving)
+      selectSong(parsedSong, content, songFile.filename);
       router.push('/two');
     } catch (err) {
       console.error('Failed to load song:', err);
