@@ -14,8 +14,8 @@ export function parseLine(line: string): SongLine {
   let lyrics = '';
   let position = 0;
 
-  // Regex to match chord brackets
-  const chordRegex = /\[([^\]]+)\]/g;
+  // Regex to match chord brackets (optionally followed by a single space)
+  const chordRegex = /\[([^\]]+)\] ?/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 

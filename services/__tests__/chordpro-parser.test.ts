@@ -52,13 +52,14 @@ describe('ChordPro Parser', () => {
     });
 
     it('should handle line with only chords', () => {
+      // Spaces after chords are trimmed, so [C] [G] [Am] has no lyrics
       const result = parseLine('[C] [G] [Am]');
 
-      expect(result.lyrics).toBe('  ');
+      expect(result.lyrics).toBe('');
       expect(result.chords).toEqual([
         { chord: 'C', position: 0 },
-        { chord: 'G', position: 1 },
-        { chord: 'Am', position: 2 },
+        { chord: 'G', position: 0 },
+        { chord: 'Am', position: 0 },
       ]);
     });
   });

@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { LayoutChangeEvent, ScrollView, StyleSheet } from 'react-native';
 
 import { ParsedSong, SongLine, SongSection } from '@/services/chordpro-types';
 import { Text, View } from './Themed';
@@ -12,12 +12,84 @@ interface SongLineViewProps {
   line: SongLine;
 }
 
-/**
- * Render a single line with chords above lyrics
- */
-function SongLineView({ line }: SongLineViewProps) {
+interface Segment {
+  textBefore: string;
+  chord?: string;
+  textAfter: string;
+}
+
+function buildSegments(line: SongLine): Segment[] {
   if (line.chords.length === 0) {
-    // No chords - just render lyrics
+    return [{ textBefore: '', textAfter: line.lyrics }];
+  }
+
+  const segments: Segment[] = [];
+
+  for (let i = 0; i < line.chords.length; i++) {
+    const chord = line.chords[i];
+    const nextChord = line.chords[i + 1];
+
+    const textBefore = i === 0 ? line.lyrics.substring(0, chord.position) : '';
+    const endPos = nextChord ? nextChord.position : line.lyrics.length;
+    const textAfter = line.lyrics.substring(chord.position, endPos);
+
+    segments.push({
+      textBefore,
+      chord: chord.chord,
+      textAfter,
+    });
+  }
+
+  return segments;
+}
+
+function isChordsOnlyLine(line: SongLine): boolean {
+  return line.chords.length > 0 && line.lyrics.trim() === '';
+}
+
+function ChordOnlyLineView({ line }: SongLineViewProps) {
+  return (
+    <View style={styles.lineContainer}>
+      <View style={styles.chordOnlyRow}>
+        {line.chords.map((chord, i) => (
+          <Text key={i} style={styles.chordSpaced}>
+            {chord.chord}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function SongLineView({ line }: SongLineViewProps) {
+  const [segmentWidths, setSegmentWidths] = useState<number[]>([]);
+  const [measurementCount, setMeasurementCount] = useState(0);
+
+  const segments = useMemo(() => buildSegments(line), [line]);
+
+  const handleSegmentLayout = useCallback(
+    (index: number, event: LayoutChangeEvent) => {
+      const { width } = event.nativeEvent.layout;
+
+      setSegmentWidths((prev) => {
+        const updated = [...prev];
+        updated[index] = width;
+        return updated;
+      });
+
+      setMeasurementCount((prev) => prev + 1);
+    },
+    []
+  );
+
+  const totalMeasurements = segments[0].textBefore ? segments.length + 1 : segments.length;
+  const measurementComplete = measurementCount >= totalMeasurements;
+
+  if (isChordsOnlyLine(line)) {
+    return <ChordOnlyLineView line={line} />;
+  }
+
+  if (line.chords.length === 0) {
     return (
       <View style={styles.lineContainer}>
         <Text style={styles.lyrics}>{line.lyrics || ' '}</Text>
@@ -25,40 +97,78 @@ function SongLineView({ line }: SongLineViewProps) {
     );
   }
 
-  // Build chord line with proper spacing
-  const chordLine = buildChordLine(line);
+  const calculateOffset = (index: number): number => {
+    const hasTextBefore = segments[0].textBefore.length > 0;
+
+    if (index === 0 && hasTextBefore) {
+      return segmentWidths[0] || 0;
+    }
+
+    if (index === 0) {
+      return 0;
+    }
+
+    let offset = hasTextBefore ? (segmentWidths[0] || 0) : 0;
+
+    for (let i = 0; i < index; i++) {
+      const widthIndex = hasTextBefore ? i + 1 : i;
+      offset += segmentWidths[widthIndex] || 0;
+    }
+
+    return offset;
+  };
 
   return (
     <View style={styles.lineContainer}>
-      <Text style={styles.chords}>{chordLine}</Text>
-      <Text style={styles.lyrics}>{line.lyrics || ' '}</Text>
+      <View style={styles.chordsRow}>
+        {segments.map((seg, i) =>
+          seg.chord ? (
+            <Text
+              key={`chord-${i}`}
+              style={[
+                styles.chord,
+                {
+                  position: 'absolute',
+                  left: calculateOffset(i),
+                  opacity: measurementComplete ? 1 : 0,
+                },
+              ]}
+            >
+              {seg.chord}
+            </Text>
+          ) : null
+        )}
+        <Text style={[styles.chord, { opacity: 0 }]}>X</Text>
+      </View>
+
+      <View style={styles.lyricsRow}>
+        {segments[0].textBefore.length > 0 && (
+          <Text
+            style={styles.lyrics}
+            onLayout={(e) => handleSegmentLayout(0, e)}
+          >
+            {segments[0].textBefore}
+          </Text>
+        )}
+        {segments.map((seg, i) => (
+          <Text
+            key={`lyric-${i}`}
+            style={styles.lyrics}
+            onLayout={(e) =>
+              handleSegmentLayout(
+                i + (segments[0].textBefore.length > 0 ? 1 : 0),
+                e
+              )
+            }
+          >
+            {seg.textAfter}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }
 
-/**
- * Build a chord line with spaces to align chords over lyrics
- */
-function buildChordLine(line: SongLine): string {
-  if (line.chords.length === 0) return '';
-
-  let result = '';
-  let currentPos = 0;
-
-  for (const chord of line.chords) {
-    // Add spaces to reach chord position
-    const spacesNeeded = Math.max(0, chord.position - currentPos);
-    result += ' '.repeat(spacesNeeded);
-    result += chord.chord;
-    currentPos = chord.position + chord.chord.length;
-  }
-
-  return result;
-}
-
-/**
- * Render a song section
- */
 function SectionView({ section }: { section: SongSection }) {
   const showLabel = section.type !== 'none' || section.label;
 
@@ -76,18 +186,13 @@ function SectionView({ section }: { section: SongSection }) {
   );
 }
 
-/**
- * Main component to render a parsed ChordPro song
- */
 export function SongView({ song }: SongViewProps) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
       {song.title && <Text style={styles.title}>{song.title}</Text>}
       {song.subtitle && <Text style={styles.subtitle}>{song.subtitle}</Text>}
       {song.artist && <Text style={styles.artist}>{song.artist}</Text>}
-      
-      {/* Metadata row */}
+
       {(song.key || song.capo) && (
         <View style={styles.metaRow}>
           {song.key && <Text style={styles.meta}>Key: {song.key}</Text>}
@@ -95,7 +200,6 @@ export function SongView({ song }: SongViewProps) {
         </View>
       )}
 
-      {/* Song content */}
       <View style={styles.songBody}>
         {song.sections.map((section, index) => (
           <SectionView key={index} section={section} />
@@ -159,19 +263,34 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   lineContainer: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  chords: {
-    fontFamily: 'SpaceMono',
+  chordsRow: {
+    flexDirection: 'row',
+    position: 'relative',
+    minHeight: 18,
+  },
+  chordOnlyRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  lyricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  chord: {
     fontSize: 14,
     fontWeight: '600',
     color: '#007AFF',
-    letterSpacing: 0,
+  },
+  chordSpaced: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    minWidth: 40,
   },
   lyrics: {
-    fontFamily: 'SpaceMono',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
   },
 });
-
