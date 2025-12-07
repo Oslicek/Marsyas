@@ -1,14 +1,27 @@
 import { StyleSheet } from 'react-native';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
+import { SongView } from '@/components/SongView';
 import { Text, View } from '@/components/Themed';
+import { useSelectedSong } from '@/hooks/use-selected-song';
 
-export default function TabTwoScreen() {
+export default function SongScreen() {
+  const { selectedSong } = useSelectedSong();
+
+  if (!selectedSong) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyIcon}>🎵</Text>
+        <Text style={styles.emptyText}>No song selected</Text>
+        <Text style={styles.emptyHint}>
+          Tap a song from the Songs tab to view it here
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab Two</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/two.tsx" />
+      <SongView song={selectedSong} />
     </View>
   );
 }
@@ -16,16 +29,25 @@ export default function TabTwoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 20,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptyHint: {
+    fontSize: 14,
+    opacity: 0.6,
+    textAlign: 'center',
   },
 });

@@ -1,16 +1,40 @@
-import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
+import { useSelectedSong } from '@/hooks/use-selected-song';
 import { useSongStorage } from '@/hooks/use-song-storage';
+import { parseChordPro } from '@/services/chordpro-parser';
+import { createSongStorageService } from '@/services/song-storage-runtime';
+import { SongFile } from '@/services/types';
 
-export default function TabOneScreen() {
-  const { songs, isLoading, isInitialized, error, initResult } = useSongStorage();
+export default function SongsScreen() {
+  const { songs, isLoading, error, initResult } = useSongStorage();
+  const { selectSong } = useSelectedSong();
+  const router = useRouter();
+
+  const handleSongPress = async (songFile: SongFile) => {
+    try {
+      // Load song content
+      const service = createSongStorageService();
+      const content = await service.fileSystem.readFile(songFile.path);
+      
+      // Parse the song
+      const parsedSong = parseChordPro(content);
+      
+      // Select and navigate
+      selectSong(parsedSong, content);
+      router.push('/two');
+    } catch (err) {
+      console.error('Failed to load song:', err);
+    }
+  };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Initializing song storage...</Text>
+        <Text style={styles.loadingText}>Loading songs...</Text>
       </View>
     );
   }
@@ -44,11 +68,18 @@ export default function TabOneScreen() {
         data={songs}
         keyExtractor={(item) => item.filename}
         renderItem={({ item }) => (
-          <View style={styles.songItem}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.songItem,
+              pressed && styles.songItemPressed,
+            ]}
+            onPress={() => handleSongPress(item)}
+          >
             <Text style={styles.songTitle}>
               {item.filename.replace('.pro', '')}
             </Text>
-          </View>
+            <Text style={styles.songArrow}>›</Text>
+          </Pressable>
         )}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No songs in library</Text>
@@ -85,15 +116,28 @@ const styles = StyleSheet.create({
   },
   list: {
     width: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
+    backgroundColor: 'transparent',
+  },
+  songItemPressed: {
+    opacity: 0.6,
   },
   songTitle: {
     fontSize: 16,
+    flex: 1,
+  },
+  songArrow: {
+    fontSize: 24,
+    opacity: 0.4,
+    marginLeft: 8,
   },
   loadingText: {
     marginTop: 16,

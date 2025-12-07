@@ -1,9 +1,8 @@
 import {
-  SongStorageService,
-  FileSystemAdapter,
   BundledAssetsAdapter,
+  FileSystemAdapter,
+  SongStorageService,
 } from '../song-storage';
-import { SongFile, StorageInitResult } from '../types';
 
 /**
  * Mock implementation of FileSystemAdapter for testing

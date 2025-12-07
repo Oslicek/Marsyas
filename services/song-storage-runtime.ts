@@ -2,11 +2,16 @@ import { Asset } from 'expo-asset';
 import { BundledAssetsAdapter, FileSystemAdapter } from './song-storage';
 
 /**
+ * Singleton memory storage - shared across all adapter instances
+ */
+const sharedMemoryStorage: Map<string, string> = new Map();
+
+/**
  * Temporary in-memory implementation of FileSystemAdapter
+ * Uses singleton storage to persist data across service instances
  * TODO: Migrate to expo-file-system new API (File/Directory classes)
  */
 export class ExpoFileSystemAdapter implements FileSystemAdapter {
-  private memoryStorage: Map<string, string> = new Map();
   public songsDirectory = 'memory://songs/';
 
   async ensureDirectoryExists(path: string): Promise<void> {
@@ -15,7 +20,7 @@ export class ExpoFileSystemAdapter implements FileSystemAdapter {
 
   async listFiles(directory: string): Promise<string[]> {
     const files: string[] = [];
-    for (const key of this.memoryStorage.keys()) {
+    for (const key of sharedMemoryStorage.keys()) {
       if (key.startsWith(this.songsDirectory)) {
         files.push(key.replace(this.songsDirectory, ''));
       }
@@ -24,15 +29,15 @@ export class ExpoFileSystemAdapter implements FileSystemAdapter {
   }
 
   async fileExists(path: string): Promise<boolean> {
-    return this.memoryStorage.has(path);
+    return sharedMemoryStorage.has(path);
   }
 
   async writeFile(path: string, content: string): Promise<void> {
-    this.memoryStorage.set(path, content);
+    sharedMemoryStorage.set(path, content);
   }
 
   async readFile(path: string): Promise<string> {
-    const content = this.memoryStorage.get(path);
+    const content = sharedMemoryStorage.get(path);
     if (!content) {
       throw new Error(`File not found: ${path}`);
     }
@@ -94,8 +99,11 @@ export class ExpoBundledAssetsAdapter implements BundledAssetsAdapter {
  */
 export function createSongStorageService() {
   const { SongStorageService } = require('./song-storage');
-  return new SongStorageService(
-    new ExpoFileSystemAdapter(),
+  const fileSystem = new ExpoFileSystemAdapter();
+  const service = new SongStorageService(
+    fileSystem,
     new ExpoBundledAssetsAdapter()
   );
+  // Expose fileSystem for direct file access
+  return Object.assign(service, { fileSystem });
 }
