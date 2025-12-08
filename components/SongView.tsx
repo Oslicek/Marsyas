@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import { StyleSheet, Text, TextStyle, View } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView, ScrollView as GHScrollView } from 'react-native-gesture-handler';
 
 import { useSettings } from '@/hooks/use-settings';
 import { transposeChord } from '@/services/chord-transpose';
@@ -10,7 +10,10 @@ interface SongViewProps {
   song: ParsedSong;
   transpose?: number;
   zoomScale?: number;
+  onScroll?: (event: { nativeEvent: { contentOffset: { y: number } } }) => void;
 }
+
+export type SongViewRef = GHScrollView;
 
 interface SongLineViewProps {
   line: SongLine;
@@ -170,48 +173,52 @@ function SectionView({
   );
 }
 
-export function SongView({ song, transpose = 0, zoomScale = 1 }: SongViewProps) {
-  const { settings } = useSettings();
+export const SongView = forwardRef<SongViewRef, SongViewProps>(
+  function SongView({ song, transpose = 0, zoomScale = 1, onScroll }, ref) {
+    const { settings } = useSettings();
 
-  const lyricsStyle: TextStyle = useMemo(
-    () => ({
-      fontFamily:
-        settings.lyrics.fontFamily === 'System'
-          ? undefined
-          : settings.lyrics.fontFamily,
-      fontSize: settings.lyrics.fontSize * zoomScale,
-      color: settings.lyrics.color,
-      fontWeight: settings.lyrics.bold ? 'bold' : 'normal',
-      fontStyle: settings.lyrics.italic ? 'italic' : 'normal',
-    }),
-    [settings.lyrics, zoomScale]
-  );
+    const lyricsStyle: TextStyle = useMemo(
+      () => ({
+        fontFamily:
+          settings.lyrics.fontFamily === 'System'
+            ? undefined
+            : settings.lyrics.fontFamily,
+        fontSize: settings.lyrics.fontSize * zoomScale,
+        color: settings.lyrics.color,
+        fontWeight: settings.lyrics.bold ? 'bold' : 'normal',
+        fontStyle: settings.lyrics.italic ? 'italic' : 'normal',
+      }),
+      [settings.lyrics, zoomScale]
+    );
 
-  const chordStyle: TextStyle = useMemo(
-    () => ({
-      fontFamily:
-        settings.chords.fontFamily === 'System'
-          ? undefined
-          : settings.chords.fontFamily,
-      fontSize: settings.chords.fontSize * zoomScale,
-      color: settings.chords.color,
-      fontWeight: settings.chords.bold ? 'bold' : 'normal',
-      fontStyle: settings.chords.italic ? 'italic' : 'normal',
-    }),
-    [settings.chords, zoomScale]
-  );
+    const chordStyle: TextStyle = useMemo(
+      () => ({
+        fontFamily:
+          settings.chords.fontFamily === 'System'
+            ? undefined
+            : settings.chords.fontFamily,
+        fontSize: settings.chords.fontSize * zoomScale,
+        color: settings.chords.color,
+        fontWeight: settings.chords.bold ? 'bold' : 'normal',
+        fontStyle: settings.chords.italic ? 'italic' : 'normal',
+      }),
+      [settings.chords, zoomScale]
+    );
 
-  // Transpose key metadata if present
-  const displayKey = useMemo(() => {
-    if (!song.key || transpose === 0) return song.key;
-    return transposeChord(song.key, transpose);
-  }, [song.key, transpose]);
+    // Transpose key metadata if present
+    const displayKey = useMemo(() => {
+      if (!song.key || transpose === 0) return song.key;
+      return transposeChord(song.key, transpose);
+    }, [song.key, transpose]);
 
-  return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: settings.backgroundColor }]}
-      contentContainerStyle={styles.content}
-    >
+    return (
+      <ScrollView
+        ref={ref}
+        style={[styles.container, { backgroundColor: settings.backgroundColor }]}
+        contentContainerStyle={styles.content}
+        scrollEventThrottle={16}
+        onScroll={onScroll}
+      >
       {song.title && (
         <Text style={[styles.title, { color: settings.lyrics.color, fontSize: 24 * zoomScale }]}>
           {song.title}
@@ -258,7 +265,7 @@ export function SongView({ song, transpose = 0, zoomScale = 1 }: SongViewProps) 
       </View>
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

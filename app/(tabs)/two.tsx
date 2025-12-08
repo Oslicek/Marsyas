@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
 import { SongEditor } from '@/components/SongEditor';
-import { SongView } from '@/components/SongView';
+import { SongView, SongViewRef } from '@/components/SongView';
 import { Text, View } from '@/components/Themed';
 import { useSelectedSong } from '@/hooks/use-selected-song';
 import { useSettings } from '@/hooks/use-settings';
@@ -16,6 +16,13 @@ const MAX_ZOOM = 3.0;
 const DEFAULT_ZOOM = 1.0;
 const ZOOM_STEP = 0.25;
 
+// Autoscroll settings
+const MIN_SCROLL_SPEED = 0.5;
+const MAX_SCROLL_SPEED = 5.0;
+const DEFAULT_SCROLL_SPEED = 1.0;
+const SCROLL_SPEED_STEP = 0.5;
+const SCROLL_INTERVAL_MS = 50; // 20 FPS
+
 export default function SongScreen() {
   const { selectedSong, songContent, songFilename, isNewSong, updateSong, clearNewSongFlag } = useSelectedSong();
   const { settings } = useSettings();
@@ -23,6 +30,13 @@ export default function SongScreen() {
   const [transpose, setTranspose] = useState(0);
   const [zoomScale, setZoomScale] = useState(DEFAULT_ZOOM);
   const savedScale = useSharedValue(DEFAULT_ZOOM);
+  
+  // Autoscroll state
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState(DEFAULT_SCROLL_SPEED);
+  const scrollViewRef = useRef<SongViewRef>(null);
+  const scrollPositionRef = useRef(0);
+  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Auto-enter edit mode for new songs
   useEffect(() => {
@@ -32,7 +46,38 @@ export default function SongScreen() {
     }
   }, [isNewSong, clearNewSongFlag]);
 
+  // Autoscroll effect
+  useEffect(() => {
+    if (isScrolling && scrollViewRef.current) {
+      scrollIntervalRef.current = setInterval(() => {
+        scrollPositionRef.current += scrollSpeed;
+        scrollViewRef.current?.scrollTo({
+          y: scrollPositionRef.current,
+          animated: false,
+        });
+      }, SCROLL_INTERVAL_MS);
+    } else {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+      }
+    };
+  }, [isScrolling, scrollSpeed]);
+
+  // Stop autoscroll when song changes
+  useEffect(() => {
+    setIsScrolling(false);
+    scrollPositionRef.current = 0;
+  }, [selectedSong]);
+
   const handleEdit = useCallback(() => {
+    setIsScrolling(false);
     setIsEditing(true);
   }, []);
 
@@ -91,6 +136,24 @@ export default function SongScreen() {
     setZoomScale(scale);
   }, []);
 
+  // Autoscroll controls
+  const handleScrollToggle = useCallback(() => {
+    setIsScrolling((prev) => !prev);
+  }, []);
+
+  const handleScrollFaster = useCallback(() => {
+    setScrollSpeed((prev) => Math.min(MAX_SCROLL_SPEED, prev + SCROLL_SPEED_STEP));
+  }, []);
+
+  const handleScrollSlower = useCallback(() => {
+    setScrollSpeed((prev) => Math.max(MIN_SCROLL_SPEED, prev - SCROLL_SPEED_STEP));
+  }, []);
+
+  // Track scroll position when user manually scrolls
+  const handleScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
+    scrollPositionRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
   // Pinch gesture for zooming (optional, buttons are primary)
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
@@ -137,7 +200,7 @@ export default function SongScreen() {
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
       <View style={[styles.container, { backgroundColor: settings.backgroundColor }]}>
-        {/* Toolbar */}
+        {/* Toolbar Row 1 */}
         <View style={styles.toolbar}>
           {/* Transpose controls */}
           <View style={styles.controlGroup}>
@@ -215,10 +278,62 @@ export default function SongScreen() {
           </Pressable>
         </View>
 
+        {/* Toolbar Row 2 - Autoscroll */}
+        <View style={styles.toolbarSecondary}>
+          <View style={styles.controlGroup}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleScrollSlower}
+            >
+              <Text style={styles.scrollButtonText}>◀</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.playButton,
+                isScrolling && styles.playButtonActive,
+              ]}
+              onPress={handleScrollToggle}
+            >
+              <Text style={[
+                styles.playButtonText,
+                isScrolling && styles.playButtonTextActive,
+              ]}>
+                {isScrolling ? '⏸' : '▶'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleScrollFaster}
+            >
+              <Text style={styles.scrollButtonText}>▶</Text>
+            </Pressable>
+
+            <View style={styles.speedIndicator}>
+              <Text style={styles.speedText}>
+                {scrollSpeed.toFixed(1)}x
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Song view with gesture handling */}
         <GestureDetector gesture={composedGesture}>
           <View style={styles.songContainer}>
-            <SongView song={selectedSong} transpose={transpose} zoomScale={zoomScale} />
+            <SongView
+              ref={scrollViewRef}
+              song={selectedSong}
+              transpose={transpose}
+              zoomScale={zoomScale}
+              onScroll={handleScroll}
+            />
           </View>
         </GestureDetector>
       </View>
@@ -245,6 +360,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
   },
+  toolbarSecondary: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
   controlGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,6 +392,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#007AFF',
   },
+  scrollButtonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
   controlValue: {
     minWidth: 40,
     height: 32,
@@ -281,6 +410,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#007AFF',
+  },
+  playButton: {
+    width: 44,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,122,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
+  playButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  playButtonText: {
+    fontSize: 14,
+    color: '#007AFF',
+  },
+  playButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  speedIndicator: {
+    minWidth: 36,
+    height: 24,
+    borderRadius: 4,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  speedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
   },
   editButton: {
     paddingVertical: 8,
