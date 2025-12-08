@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { StyleSheet, Text, TextStyle, View } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 
 import { useSettings } from '@/hooks/use-settings';
 import { transposeChord } from '@/services/chord-transpose';
@@ -8,6 +9,7 @@ import { ParsedSong, SongLine, SongSection } from '@/services/chordpro-types';
 interface SongViewProps {
   song: ParsedSong;
   transpose?: number;
+  zoomScale?: number;
 }
 
 interface SongLineViewProps {
@@ -137,19 +139,21 @@ function SectionView({
   chordStyle,
   textColor,
   transpose,
+  zoomScale,
 }: {
   section: SongSection;
   lyricsStyle: TextStyle;
   chordStyle: TextStyle;
   textColor: string;
   transpose: number;
+  zoomScale: number;
 }) {
   const showLabel = section.type !== 'none' || section.label;
 
   return (
     <View style={styles.section}>
       {showLabel && (
-        <Text style={[styles.sectionLabel, { color: textColor }]}>
+        <Text style={[styles.sectionLabel, { color: textColor, fontSize: 12 * zoomScale }]}>
           {section.label || section.type.toUpperCase()}
         </Text>
       )}
@@ -166,7 +170,7 @@ function SectionView({
   );
 }
 
-export function SongView({ song, transpose = 0 }: SongViewProps) {
+export function SongView({ song, transpose = 0, zoomScale = 1 }: SongViewProps) {
   const { settings } = useSettings();
 
   const lyricsStyle: TextStyle = useMemo(
@@ -175,12 +179,12 @@ export function SongView({ song, transpose = 0 }: SongViewProps) {
         settings.lyrics.fontFamily === 'System'
           ? undefined
           : settings.lyrics.fontFamily,
-      fontSize: settings.lyrics.fontSize,
+      fontSize: settings.lyrics.fontSize * zoomScale,
       color: settings.lyrics.color,
       fontWeight: settings.lyrics.bold ? 'bold' : 'normal',
       fontStyle: settings.lyrics.italic ? 'italic' : 'normal',
     }),
-    [settings.lyrics]
+    [settings.lyrics, zoomScale]
   );
 
   const chordStyle: TextStyle = useMemo(
@@ -189,12 +193,12 @@ export function SongView({ song, transpose = 0 }: SongViewProps) {
         settings.chords.fontFamily === 'System'
           ? undefined
           : settings.chords.fontFamily,
-      fontSize: settings.chords.fontSize,
+      fontSize: settings.chords.fontSize * zoomScale,
       color: settings.chords.color,
       fontWeight: settings.chords.bold ? 'bold' : 'normal',
       fontStyle: settings.chords.italic ? 'italic' : 'normal',
     }),
-    [settings.chords]
+    [settings.chords, zoomScale]
   );
 
   // Transpose key metadata if present
@@ -209,17 +213,17 @@ export function SongView({ song, transpose = 0 }: SongViewProps) {
       contentContainerStyle={styles.content}
     >
       {song.title && (
-        <Text style={[styles.title, { color: settings.lyrics.color }]}>
+        <Text style={[styles.title, { color: settings.lyrics.color, fontSize: 24 * zoomScale }]}>
           {song.title}
         </Text>
       )}
       {song.subtitle && (
-        <Text style={[styles.subtitle, { color: settings.lyrics.color }]}>
+        <Text style={[styles.subtitle, { color: settings.lyrics.color, fontSize: 16 * zoomScale }]}>
           {song.subtitle}
         </Text>
       )}
       {song.artist && (
-        <Text style={[styles.artist, { color: settings.lyrics.color }]}>
+        <Text style={[styles.artist, { color: settings.lyrics.color, fontSize: 14 * zoomScale }]}>
           {song.artist}
         </Text>
       )}
@@ -227,12 +231,12 @@ export function SongView({ song, transpose = 0 }: SongViewProps) {
       {(displayKey || song.capo) && (
         <View style={styles.metaRow}>
           {displayKey && (
-            <Text style={[styles.meta, { color: settings.lyrics.color }]}>
+            <Text style={[styles.meta, { color: settings.lyrics.color, fontSize: 12 * zoomScale }]}>
               Key: {displayKey}
             </Text>
           )}
           {song.capo && (
-            <Text style={[styles.meta, { color: settings.lyrics.color }]}>
+            <Text style={[styles.meta, { color: settings.lyrics.color, fontSize: 12 * zoomScale }]}>
               Capo: {song.capo}
             </Text>
           )}
@@ -248,6 +252,7 @@ export function SongView({ song, transpose = 0 }: SongViewProps) {
             chordStyle={chordStyle}
             textColor={settings.lyrics.color}
             transpose={transpose}
+            zoomScale={zoomScale}
           />
         ))}
       </View>
@@ -263,19 +268,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
     textAlign: 'center',
     opacity: 0.7,
     marginBottom: 4,
   },
   artist: {
-    fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
     opacity: 0.6,
@@ -291,7 +293,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(150,150,150,0.3)',
   },
   meta: {
-    fontSize: 12,
     opacity: 0.7,
   },
   songBody: {
@@ -301,7 +302,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionLabel: {
-    fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     opacity: 0.5,

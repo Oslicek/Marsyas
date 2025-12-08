@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
 import { SongEditor } from '@/components/SongEditor';
 import { SongView } from '@/components/SongView';
@@ -9,11 +11,18 @@ import { useSettings } from '@/hooks/use-settings';
 import { parseChordPro } from '@/services/chordpro-parser';
 import { createSongStorageService } from '@/services/song-storage-runtime';
 
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3.0;
+const DEFAULT_ZOOM = 1.0;
+const ZOOM_STEP = 0.25;
+
 export default function SongScreen() {
   const { selectedSong, songContent, songFilename, isNewSong, updateSong, clearNewSongFlag } = useSelectedSong();
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [transpose, setTranspose] = useState(0);
+  const [zoomScale, setZoomScale] = useState(DEFAULT_ZOOM);
+  const savedScale = useSharedValue(DEFAULT_ZOOM);
 
   // Auto-enter edit mode for new songs
   useEffect(() => {
@@ -64,6 +73,45 @@ export default function SongScreen() {
     setTranspose(0);
   }, []);
 
+  // Zoom controls
+  const handleZoomIn = useCallback(() => {
+    setZoomScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomScale((prev) => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
+  }, []);
+
+  const handleZoomReset = useCallback(() => {
+    setZoomScale(DEFAULT_ZOOM);
+    savedScale.value = DEFAULT_ZOOM;
+  }, [savedScale]);
+
+  const updateZoom = useCallback((scale: number) => {
+    setZoomScale(scale);
+  }, []);
+
+  // Pinch gesture for zooming (optional, buttons are primary)
+  const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      savedScale.value = zoomScale;
+    })
+    .onUpdate((event) => {
+      const newScale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, savedScale.value * event.scale));
+      runOnJS(updateZoom)(newScale);
+    });
+
+  // Double tap to reset zoom
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDuration(250)
+    .onEnd(() => {
+      runOnJS(handleZoomReset)();
+    });
+
+  // Compose gestures
+  const composedGesture = Gesture.Simultaneous(doubleTapGesture, pinchGesture);
+
   if (!selectedSong || !songContent) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: settings.backgroundColor }]}>
@@ -87,107 +135,156 @@ export default function SongScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: settings.backgroundColor }]}>
-      {/* Toolbar */}
-      <View style={styles.toolbar}>
-        {/* Transpose controls */}
-        <View style={styles.transposeContainer}>
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <View style={[styles.container, { backgroundColor: settings.backgroundColor }]}>
+        {/* Toolbar */}
+        <View style={styles.toolbar}>
+          {/* Transpose controls */}
+          <View style={styles.controlGroup}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleTransposeDown}
+            >
+              <Text style={styles.controlButtonText}>−</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.controlValue}
+              onPress={handleTransposeReset}
+            >
+              <Text style={styles.controlValueText}>
+                {transpose === 0 ? '0' : transpose > 0 ? `+${transpose}` : transpose}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleTransposeUp}
+            >
+              <Text style={styles.controlButtonText}>+</Text>
+            </Pressable>
+          </View>
+
+          {/* Zoom controls */}
+          <View style={styles.controlGroup}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleZoomOut}
+            >
+              <Text style={styles.zoomButtonText}>A−</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.controlValue}
+              onPress={handleZoomReset}
+            >
+              <Text style={styles.controlValueText}>
+                {Math.round(zoomScale * 100)}%
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.controlButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleZoomIn}
+            >
+              <Text style={styles.zoomButtonText}>A+</Text>
+            </Pressable>
+          </View>
+
+          {/* Edit button */}
           <Pressable
             style={({ pressed }) => [
-              styles.transposeButton,
+              styles.editButton,
               pressed && styles.buttonPressed,
             ]}
-            onPress={handleTransposeDown}
+            onPress={handleEdit}
           >
-            <Text style={styles.transposeButtonText}>−</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.transposeValue}
-            onPress={handleTransposeReset}
-          >
-            <Text style={styles.transposeValueText}>
-              {transpose === 0 ? '0' : transpose > 0 ? `+${transpose}` : transpose}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.transposeButton,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={handleTransposeUp}
-          >
-            <Text style={styles.transposeButtonText}>+</Text>
+            <Text style={styles.editButtonText}>Edit</Text>
           </Pressable>
         </View>
 
-        {/* Edit button */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.editButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={handleEdit}
-        >
-          <Text style={styles.editButtonText}>Edit</Text>
-        </Pressable>
+        {/* Song view with gesture handling */}
+        <GestureDetector gesture={composedGesture}>
+          <View style={styles.songContainer}>
+            <SongView song={selectedSong} transpose={transpose} zoomScale={zoomScale} />
+          </View>
+        </GestureDetector>
       </View>
-
-      {/* Song view */}
-      <SongView song={selectedSong} transpose={transpose} />
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   container: {
+    flex: 1,
+  },
+  songContainer: {
     flex: 1,
   },
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
   },
-  transposeContainer: {
+  controlGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
-  transposeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  controlButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(150,150,150,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  transposeButtonText: {
-    fontSize: 20,
+  controlButtonText: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#007AFF',
   },
-  transposeValue: {
-    minWidth: 44,
-    height: 36,
+  zoomButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  controlValue: {
+    minWidth: 40,
+    height: 32,
     borderRadius: 8,
     backgroundColor: 'rgba(150,150,150,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
   },
-  transposeValueText: {
-    fontSize: 14,
+  controlValueText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#007AFF',
   },
   editButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 8,
     backgroundColor: 'rgba(0,122,255,0.1)',
   },
