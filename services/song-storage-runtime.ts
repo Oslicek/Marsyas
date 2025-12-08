@@ -69,6 +69,10 @@ const BUNDLED_SONGS: BundledSong[] = [
     filename: "Knocking On Heaven's Door.pro",
     asset: require("../data/Knocking On Heaven's Door.pro"),
   },
+  {
+    filename: 'Kometa.pro',
+    asset: require('../data/Kometa.pro'),
+  },
 ];
 
 /**

@@ -3,6 +3,7 @@ import { StyleSheet, TextInput, ScrollView, Pressable } from 'react-native';
 
 import { Text, View } from './Themed';
 import { useColorScheme } from './useColorScheme';
+import { copyChordsToSections } from '@/services/chord-copy';
 
 interface SongEditorProps {
   content: string;
@@ -31,6 +32,11 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
     setEditedContent(text);
   }, []);
 
+  const handleCopyChords = useCallback(() => {
+    const newContent = copyChordsToSections(editedContent);
+    setEditedContent(newContent);
+  }, [editedContent]);
+
   return (
     <View style={styles.container}>
       {/* Toolbar */}
@@ -54,6 +60,19 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
           <Text style={[styles.saveButton, !hasChanges && styles.disabledText]}>
             Save
           </Text>
+        </Pressable>
+      </View>
+
+      {/* Tools Row */}
+      <View style={styles.toolsRow}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.toolButton,
+            pressed && styles.toolButtonPressed,
+          ]}
+          onPress={handleCopyChords}
+        >
+          <Text style={styles.toolButtonText}>📋 Copy Chords</Text>
         </Pressable>
       </View>
 
@@ -84,7 +103,7 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
       {/* Help text */}
       <View style={styles.helpBar}>
         <Text style={styles.helpText}>
-          Use [C] [Am] [G7] for chords • {'{'}title: Name{'}'} for metadata
+          Use [C] [Am] for chords • {'{'}sov{'}'}/{'{'}eov{'}'} for verses • {'{'}soc{'}'}/{'{'}eoc{'}'} for chorus
         </Text>
       </View>
     </View>
@@ -129,6 +148,28 @@ const styles = StyleSheet.create({
   disabledText: {
     color: '#999',
   },
+  toolsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+    gap: 8,
+  },
+  toolButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,122,255,0.1)',
+  },
+  toolButtonPressed: {
+    opacity: 0.6,
+  },
+  toolButtonText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
   scrollView: {
     flex: 1,
   },
@@ -153,5 +194,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
-
