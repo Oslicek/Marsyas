@@ -43,6 +43,10 @@ export class ExpoFileSystemAdapter implements FileSystemAdapter {
     }
     return content;
   }
+
+  async deleteFile(path: string): Promise<void> {
+    sharedMemoryStorage.delete(path);
+  }
 }
 
 /**

@@ -1,4 +1,5 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
@@ -8,10 +9,24 @@ import { parseChordPro } from '@/services/chordpro-parser';
 import { createSongStorageService } from '@/services/song-storage-runtime';
 import { SongFile } from '@/services/types';
 
+// Template for new songs
+const NEW_SONG_TEMPLATE = `{title: New Song}
+{artist: }
+
+[C] 
+`;
+
 export default function SongsScreen() {
-  const { songs, isLoading, error, initResult } = useSongStorage();
-  const { selectSong } = useSelectedSong();
+  const { songs, isLoading, error, initResult, refresh } = useSongStorage();
+  const { selectSong, selectNewSong } = useSelectedSong();
   const router = useRouter();
+
+  // Refresh song list when tab becomes focused (catches renames from Tab 2)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const handleSongPress = async (songFile: SongFile) => {
     try {
@@ -27,6 +42,30 @@ export default function SongsScreen() {
       router.push('/two');
     } catch (err) {
       console.error('Failed to load song:', err);
+    }
+  };
+
+  const handleNewSong = async () => {
+    try {
+      // Generate unique filename
+      const timestamp = Date.now();
+      const filename = `New Song ${timestamp}.pro`;
+      
+      // Save new song to storage
+      const service = createSongStorageService();
+      await service.saveSong(filename, NEW_SONG_TEMPLATE);
+      
+      // Parse and select as new song (will open in edit mode)
+      const parsedSong = parseChordPro(NEW_SONG_TEMPLATE);
+      selectNewSong(parsedSong, NEW_SONG_TEMPLATE, filename);
+      
+      // Refresh song list
+      refresh();
+      
+      // Navigate to Song tab
+      router.push('/two');
+    } catch (err) {
+      console.error('Failed to create new song:', err);
     }
   };
 
@@ -60,6 +99,17 @@ export default function SongsScreen() {
       <Text style={styles.subtitle}>
         {songs.length} song{songs.length !== 1 ? 's' : ''} in library
       </Text>
+
+      {/* New Song button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.newSongButton,
+          pressed && styles.newSongButtonPressed,
+        ]}
+        onPress={handleNewSong}
+      >
+        <Text style={styles.newSongButtonText}>+ New Song</Text>
+      </Pressable>
       
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
       
@@ -108,6 +158,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4CAF50',
     marginBottom: 4,
+  },
+  newSongButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+  },
+  newSongButtonPressed: {
+    opacity: 0.7,
+  },
+  newSongButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   separator: {
     marginVertical: 20,

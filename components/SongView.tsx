@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   inlineRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
   },
   segment: {
     // Each segment stacks chord above text

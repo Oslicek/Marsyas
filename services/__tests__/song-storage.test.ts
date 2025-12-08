@@ -58,6 +58,10 @@ class MockFileSystemAdapter implements FileSystemAdapter {
     return content;
   }
 
+  async deleteFile(path: string): Promise<void> {
+    this.files.delete(path);
+  }
+
   // Test helpers
   _setFile(path: string, content: string): void {
     this.files.set(path, content);
@@ -303,6 +307,115 @@ describe('SongStorageService', () => {
 
     it('should throw error if song does not exist', async () => {
       await expect(service.readSong('NonExistent.pro')).rejects.toThrow();
+    });
+  });
+
+  describe('deleteSong', () => {
+    it('should delete song from file system', async () => {
+      const filename = 'Test Song.pro';
+      fileSystem._setFile(fileSystem.songsDirectory + filename, '{title: Test}');
+
+      await service.deleteSong(filename);
+
+      const exists = await fileSystem.fileExists(fileSystem.songsDirectory + filename);
+      expect(exists).toBe(false);
+    });
+  });
+
+  describe('extractTitle', () => {
+    it('should extract title from ChordPro content', () => {
+      const content = '{title: My Song}\n[C]Hello';
+      expect(service.extractTitle(content)).toBe('My Song');
+    });
+
+    it('should handle title with extra whitespace', () => {
+      const content = '{title:   Spaced Title   }\n[C]Hello';
+      expect(service.extractTitle(content)).toBe('Spaced Title');
+    });
+
+    it('should return null if no title found', () => {
+      const content = '[C]Just chords';
+      expect(service.extractTitle(content)).toBeNull();
+    });
+
+    it('should be case insensitive', () => {
+      const content = '{TITLE: Uppercase}\n[C]Hello';
+      expect(service.extractTitle(content)).toBe('Uppercase');
+    });
+  });
+
+  describe('generateUniqueFilename', () => {
+    it('should return base filename if not exists', async () => {
+      const result = await service.generateUniqueFilename('New Song');
+      expect(result).toBe('New Song.pro');
+    });
+
+    it('should add number suffix if filename exists', async () => {
+      fileSystem._setFile(fileSystem.songsDirectory + 'My Song.pro', '{title: My Song}');
+
+      const result = await service.generateUniqueFilename('My Song');
+      expect(result).toBe('My Song 0001.pro');
+    });
+
+    it('should increment number for multiple duplicates', async () => {
+      fileSystem._setFile(fileSystem.songsDirectory + 'Song.pro', '{title: Song}');
+      fileSystem._setFile(fileSystem.songsDirectory + 'Song 0001.pro', '{title: Song}');
+      fileSystem._setFile(fileSystem.songsDirectory + 'Song 0002.pro', '{title: Song}');
+
+      const result = await service.generateUniqueFilename('Song');
+      expect(result).toBe('Song 0003.pro');
+    });
+
+    it('should exclude current filename from check', async () => {
+      fileSystem._setFile(fileSystem.songsDirectory + 'My Song.pro', '{title: My Song}');
+
+      const result = await service.generateUniqueFilename('My Song', 'My Song.pro');
+      expect(result).toBe('My Song.pro');
+    });
+  });
+
+  describe('saveSongWithRename', () => {
+    it('should save and rename based on title', async () => {
+      const oldFilename = 'Old Name.pro';
+      const content = '{title: New Title}\n[C]Hello';
+      fileSystem._setFile(fileSystem.songsDirectory + oldFilename, '{title: Old Name}');
+
+      const newFilename = await service.saveSongWithRename(oldFilename, content);
+
+      expect(newFilename).toBe('New Title.pro');
+      expect(fileSystem._getFile(fileSystem.songsDirectory + 'New Title.pro')).toBe(content);
+      expect(await fileSystem.fileExists(fileSystem.songsDirectory + oldFilename)).toBe(false);
+    });
+
+    it('should not rename if title unchanged', async () => {
+      const filename = 'Same Title.pro';
+      const content = '{title: Same Title}\n[C]Hello';
+      fileSystem._setFile(fileSystem.songsDirectory + filename, '{title: Same Title}\n[Am]Old');
+
+      const newFilename = await service.saveSongWithRename(filename, content);
+
+      expect(newFilename).toBe('Same Title.pro');
+      expect(fileSystem._getFile(fileSystem.songsDirectory + filename)).toBe(content);
+    });
+
+    it('should add number if new title conflicts with existing', async () => {
+      const oldFilename = 'Old.pro';
+      const content = '{title: Existing}\n[C]Hello';
+      fileSystem._setFile(fileSystem.songsDirectory + oldFilename, '{title: Old}');
+      fileSystem._setFile(fileSystem.songsDirectory + 'Existing.pro', '{title: Existing}');
+
+      const newFilename = await service.saveSongWithRename(oldFilename, content);
+
+      expect(newFilename).toBe('Existing 0001.pro');
+    });
+
+    it('should use current filename if no title in content', async () => {
+      const filename = 'No Title.pro';
+      const content = '[C]Just chords';
+
+      const newFilename = await service.saveSongWithRename(filename, content);
+
+      expect(newFilename).toBe('No Title.pro');
     });
   });
 });

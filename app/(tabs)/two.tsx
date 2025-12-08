@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { SongEditor } from '@/components/SongEditor';
@@ -10,10 +10,18 @@ import { parseChordPro } from '@/services/chordpro-parser';
 import { createSongStorageService } from '@/services/song-storage-runtime';
 
 export default function SongScreen() {
-  const { selectedSong, songContent, songFilename, updateSong } = useSelectedSong();
+  const { selectedSong, songContent, songFilename, isNewSong, updateSong, clearNewSongFlag } = useSelectedSong();
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [transpose, setTranspose] = useState(0);
+
+  // Auto-enter edit mode for new songs
+  useEffect(() => {
+    if (isNewSong) {
+      setIsEditing(true);
+      clearNewSongFlag();
+    }
+  }, [isNewSong, clearNewSongFlag]);
 
   const handleEdit = useCallback(() => {
     setIsEditing(true);
@@ -27,13 +35,15 @@ export default function SongScreen() {
     if (!songFilename) return;
 
     try {
-      // Save to storage
+      // Save with automatic rename based on title
       const service = createSongStorageService();
-      await service.saveSong(songFilename, newContent);
+      console.log('Saving song, current filename:', songFilename);
+      const newFilename = await service.saveSongWithRename(songFilename, newContent);
+      console.log('New filename after save:', newFilename);
 
-      // Re-parse and update context
+      // Re-parse and update context (include new filename if changed)
       const parsedSong = parseChordPro(newContent);
-      updateSong(parsedSong, newContent);
+      updateSong(parsedSong, newContent, newFilename);
 
       // Exit edit mode
       setIsEditing(false);

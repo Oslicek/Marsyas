@@ -11,6 +11,7 @@ export interface FileSystemAdapter {
   fileExists(path: string): Promise<boolean>;
   writeFile(path: string, content: string): Promise<void>;
   readFile(path: string): Promise<string>;
+  deleteFile(path: string): Promise<void>;
 }
 
 /**
@@ -98,6 +99,87 @@ export class SongStorageService {
   async readSong(filename: string): Promise<string> {
     const path = this.fileSystem.songsDirectory + filename;
     return await this.fileSystem.readFile(path);
+  }
+
+  /**
+   * Delete a song file
+   */
+  async deleteSong(filename: string): Promise<void> {
+    const path = this.fileSystem.songsDirectory + filename;
+    await this.fileSystem.deleteFile(path);
+  }
+
+  /**
+   * Extract title from ChordPro content
+   */
+  extractTitle(content: string): string | null {
+    const match = content.match(/\{title:\s*([^}]+)\}/i);
+    return match ? match[1].trim() : null;
+  }
+
+  /**
+   * Generate unique filename from title
+   * If title already exists, adds " 0001", " 0002", etc.
+   */
+  async generateUniqueFilename(title: string, excludeFilename?: string): Promise<string> {
+    const baseFilename = `${title}.pro`;
+    const files = await this.listSongFiles();
+    const existingNames = new Set(
+      files
+        .map((f) => f.filename)
+        .filter((name) => name !== excludeFilename)
+    );
+
+    // If base filename doesn't exist, use it
+    if (!existingNames.has(baseFilename)) {
+      return baseFilename;
+    }
+
+    // Find next available number
+    let counter = 1;
+    while (counter < 10000) {
+      const numberedFilename = `${title} ${counter.toString().padStart(4, '0')}.pro`;
+      if (!existingNames.has(numberedFilename)) {
+        return numberedFilename;
+      }
+      counter++;
+    }
+
+    throw new Error('Unable to generate unique filename');
+  }
+
+  /**
+   * Save song with automatic renaming based on title
+   * Returns the new filename
+   */
+  async saveSongWithRename(
+    currentFilename: string,
+    content: string
+  ): Promise<string> {
+    const newTitle = this.extractTitle(content);
+    
+    // If no title, just save with current filename
+    if (!newTitle) {
+      await this.saveSong(currentFilename, content);
+      return currentFilename;
+    }
+
+    // Generate filename from title
+    const newFilename = await this.generateUniqueFilename(newTitle, currentFilename);
+
+    // Save the new file
+    await this.saveSong(newFilename, content);
+
+    // Delete old file if name changed
+    if (newFilename !== currentFilename) {
+      try {
+        await this.deleteSong(currentFilename);
+      } catch {
+        // Old file might not exist (new song case)
+      }
+    }
+
+    return newFilename;
   }
 }
 

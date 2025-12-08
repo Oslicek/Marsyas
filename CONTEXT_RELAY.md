@@ -57,3 +57,4 @@ Must manually add new .pro files to BUNDLED_SONGS array.
 33 tests passing: song-storage (28), chordpro-parser (18), StyledText (1)
 Run: `npm test`
 
+
