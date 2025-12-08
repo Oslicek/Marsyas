@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch } from 'react-native';
+import {
+    FlatList,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+} from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import {
@@ -46,29 +53,81 @@ function FontPicker({
   selected: string;
   onSelect: (font: string) => void;
 }) {
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const handleSelect = (font: string) => {
+    onSelect(font);
+    setModalVisible(false);
+  };
+
   return (
-    <View style={styles.fontPickerRow}>
-      {AVAILABLE_FONTS.map((font) => (
-        <Pressable
-          key={font}
+    <>
+      {/* Current selection button */}
+      <Pressable
+        style={styles.fontSelectButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text
           style={[
-            styles.fontOption,
-            selected === font && styles.fontOptionSelected,
+            styles.fontSelectText,
+            { fontFamily: selected === 'System' ? undefined : selected },
           ]}
-          onPress={() => onSelect(font)}
         >
-          <Text
-            style={[
-              styles.fontOptionText,
-              { fontFamily: font === 'System' ? undefined : font },
-              selected === font && styles.fontOptionTextSelected,
-            ]}
-          >
-            {font}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
+          {selected}
+        </Text>
+        <Text style={styles.fontSelectArrow}>▼</Text>
+      </Pressable>
+
+      {/* Font selection modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Font</Text>
+              <Pressable
+                style={styles.modalCloseButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <FlatList
+              data={AVAILABLE_FONTS}
+              keyExtractor={(item) => item}
+              style={styles.fontList}
+              renderItem={({ item: font }) => (
+                <Pressable
+                  style={[
+                    styles.fontListItem,
+                    selected === font && styles.fontListItemSelected,
+                  ]}
+                  onPress={() => handleSelect(font)}
+                >
+                  <Text
+                    style={[
+                      styles.fontListItemText,
+                      { fontFamily: font === 'System' ? undefined : font },
+                      selected === font && styles.fontListItemTextSelected,
+                    ]}
+                  >
+                    {font}
+                  </Text>
+                  {selected === font && (
+                    <Text style={styles.fontListItemCheck}>✓</Text>
+                  )}
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -297,26 +356,84 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
     borderWidth: 3,
   },
-  fontPickerRow: {
+  // Font picker styles
+  fontSelectButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  fontOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: 'rgba(150,150,150,0.2)',
+    borderRadius: 8,
+    padding: 12,
   },
-  fontOptionSelected: {
-    backgroundColor: '#007AFF',
+  fontSelectText: {
+    fontSize: 16,
+    flex: 1,
   },
-  fontOptionText: {
+  fontSelectArrow: {
     fontSize: 12,
+    opacity: 0.5,
+    marginLeft: 8,
   },
-  fontOptionTextSelected: {
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalCloseText: {
+    fontSize: 18,
+    color: '#8E8E93',
+  },
+  fontList: {
+    padding: 8,
+  },
+  fontListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 8,
+  },
+  fontListItemSelected: {
+    backgroundColor: 'rgba(0,122,255,0.2)',
+  },
+  fontListItemText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  fontListItemTextSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  fontListItemCheck: {
+    fontSize: 18,
+    color: '#007AFF',
+    marginLeft: 8,
+  },
+  // Size slider styles
   sizeRow: {
     flexDirection: 'row',
     alignItems: 'center',

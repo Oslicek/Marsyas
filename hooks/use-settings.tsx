@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
+import { Platform } from 'react-native';
 
 export interface FontSettings {
   fontFamily: string;
@@ -84,15 +85,76 @@ export function useSettings() {
   return context;
 }
 
-export const AVAILABLE_FONTS = [
+// iOS system fonts (available on all iOS devices)
+const IOS_FONTS = [
   'System',
-  'SpaceMono',
-  'Courier',
+  'SpaceMono', // Bundled with app
+  // Sans-serif
+  'Helvetica Neue',
+  'Helvetica',
+  'Arial',
+  'Avenir',
+  'Avenir Next',
+  'Futura',
+  'Gill Sans',
+  'Verdana',
+  'Trebuchet MS',
+  // Serif
   'Georgia',
   'Times New Roman',
-  'Arial',
-  'Helvetica',
+  'Palatino',
+  'Baskerville',
+  'Hoefler Text',
+  'Didot',
+  'Optima',
+  // Monospace
+  'Courier',
+  'Courier New',
+  'Menlo',
+  'American Typewriter',
+  // Display/Decorative
+  'Copperplate',
+  'Papyrus',
+  'Marker Felt',
+  'Chalkboard SE',
+  'Noteworthy',
+  'Snell Roundhand',
+  'Bradley Hand',
+  'Party LET',
+  'Zapfino',
 ];
+
+// Android system fonts
+const ANDROID_FONTS = [
+  'System',
+  'SpaceMono', // Bundled with app
+  // Roboto variants
+  'Roboto',
+  'sans-serif',
+  'sans-serif-light',
+  'sans-serif-thin',
+  'sans-serif-condensed',
+  'sans-serif-medium',
+  'sans-serif-black',
+  'sans-serif-smallcaps',
+  // Serif
+  'serif',
+  'Droid Serif',
+  'notoserif',
+  // Monospace
+  'monospace',
+  'Droid Sans Mono',
+  // Decorative
+  'cursive',
+  'casual',
+  'serif-monospace',
+];
+
+export const AVAILABLE_FONTS = Platform.select({
+  ios: IOS_FONTS,
+  android: ANDROID_FONTS,
+  default: ['System', 'SpaceMono'],
+}) as string[];
 
 export const PRESET_COLORS = [
   '#FFFFFF', // White
@@ -105,4 +167,3 @@ export const PRESET_COLORS = [
   '#FFD60A', // Yellow
   '#8E8E93', // Gray
 ];
-
