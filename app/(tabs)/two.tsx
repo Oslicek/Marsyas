@@ -13,6 +13,7 @@ export default function SongScreen() {
   const { selectedSong, songContent, songFilename, updateSong } = useSelectedSong();
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
+  const [transpose, setTranspose] = useState(0);
 
   const handleEdit = useCallback(() => {
     setIsEditing(true);
@@ -41,6 +42,18 @@ export default function SongScreen() {
     }
   }, [songFilename, updateSong]);
 
+  const handleTransposeUp = useCallback(() => {
+    setTranspose((prev) => (prev + 1) % 12);
+  }, []);
+
+  const handleTransposeDown = useCallback(() => {
+    setTranspose((prev) => (prev - 1 + 12) % 12);
+  }, []);
+
+  const handleTransposeReset = useCallback(() => {
+    setTranspose(0);
+  }, []);
+
   if (!selectedSong || !songContent) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: settings.backgroundColor }]}>
@@ -65,12 +78,45 @@ export default function SongScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: settings.backgroundColor }]}>
-      {/* Edit button */}
+      {/* Toolbar */}
       <View style={styles.toolbar}>
+        {/* Transpose controls */}
+        <View style={styles.transposeContainer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.transposeButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleTransposeDown}
+          >
+            <Text style={styles.transposeButtonText}>−</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.transposeValue}
+            onPress={handleTransposeReset}
+          >
+            <Text style={styles.transposeValueText}>
+              {transpose === 0 ? '0' : transpose > 0 ? `+${transpose}` : transpose}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.transposeButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleTransposeUp}
+          >
+            <Text style={styles.transposeButtonText}>+</Text>
+          </Pressable>
+        </View>
+
+        {/* Edit button */}
         <Pressable
           style={({ pressed }) => [
             styles.editButton,
-            pressed && styles.editButtonPressed,
+            pressed && styles.buttonPressed,
           ]}
           onPress={handleEdit}
         >
@@ -79,7 +125,7 @@ export default function SongScreen() {
       </View>
 
       {/* Song view */}
-      <SongView song={selectedSong} />
+      <SongView song={selectedSong} transpose={transpose} />
     </View>
   );
 }
@@ -90,11 +136,44 @@ const styles = StyleSheet.create({
   },
   toolbar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
+  transposeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  transposeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(150,150,150,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transposeButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  transposeValue: {
+    minWidth: 44,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  transposeValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   editButton: {
     paddingVertical: 8,
@@ -102,7 +181,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(0,122,255,0.1)',
   },
-  editButtonPressed: {
+  buttonPressed: {
     opacity: 0.6,
   },
   editButtonText: {

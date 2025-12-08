@@ -2,16 +2,19 @@ import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 
 import { useSettings } from '@/hooks/use-settings';
+import { transposeChord } from '@/services/chord-transpose';
 import { ParsedSong, SongLine, SongSection } from '@/services/chordpro-types';
 
 interface SongViewProps {
   song: ParsedSong;
+  transpose?: number;
 }
 
 interface SongLineViewProps {
   line: SongLine;
   lyricsStyle: TextStyle;
   chordStyle: TextStyle;
+  transpose: number;
 }
 
 interface Segment {
@@ -23,13 +26,12 @@ interface Segment {
  * Split a SongLine into segments for inline rendering
  * Each segment has a chord (optional) and the text that follows it
  */
-function buildSegments(line: SongLine): Segment[] {
+function buildSegments(line: SongLine, transpose: number): Segment[] {
   if (line.chords.length === 0) {
     return [{ text: line.lyrics }];
   }
 
   const segments: Segment[] = [];
-  let lastPos = 0;
 
   // If there's text before the first chord, add it as a segment without chord
   if (line.chords[0].position > 0) {
@@ -42,8 +44,13 @@ function buildSegments(line: SongLine): Segment[] {
     const endPos = nextChord ? nextChord.position : line.lyrics.length;
     const text = line.lyrics.substring(chord.position, endPos);
 
+    // Apply transposition to chord
+    const transposedChord = transpose !== 0
+      ? transposeChord(chord.chord, transpose)
+      : chord.chord;
+
     segments.push({
-      chord: chord.chord,
+      chord: transposedChord,
       text: text,
     });
   }
@@ -58,18 +65,25 @@ function isChordsOnlyLine(line: SongLine): boolean {
 function ChordOnlyLineView({
   line,
   chordStyle,
+  transpose,
 }: {
   line: SongLine;
   chordStyle: TextStyle;
+  transpose: number;
 }) {
   return (
     <View style={styles.lineContainer}>
       <View style={styles.chordOnlyRow}>
-        {line.chords.map((chord, i) => (
-          <Text key={i} style={[chordStyle, styles.chordSpaced]}>
-            {chord.chord}
-          </Text>
-        ))}
+        {line.chords.map((chord, i) => {
+          const transposedChord = transpose !== 0
+            ? transposeChord(chord.chord, transpose)
+            : chord.chord;
+          return (
+            <Text key={i} style={[chordStyle, styles.chordSpaced]}>
+              {transposedChord}
+            </Text>
+          );
+        })}
       </View>
     </View>
   );
@@ -79,11 +93,11 @@ function ChordOnlyLineView({
  * Render a single line with chords inline above their text
  * Uses vertical stacking per segment so chords flow with wrapping text
  */
-function SongLineView({ line, lyricsStyle, chordStyle }: SongLineViewProps) {
-  const segments = useMemo(() => buildSegments(line), [line]);
+function SongLineView({ line, lyricsStyle, chordStyle, transpose }: SongLineViewProps) {
+  const segments = useMemo(() => buildSegments(line, transpose), [line, transpose]);
 
   if (isChordsOnlyLine(line)) {
-    return <ChordOnlyLineView line={line} chordStyle={chordStyle} />;
+    return <ChordOnlyLineView line={line} chordStyle={chordStyle} transpose={transpose} />;
   }
 
   if (line.chords.length === 0) {
@@ -122,11 +136,13 @@ function SectionView({
   lyricsStyle,
   chordStyle,
   textColor,
+  transpose,
 }: {
   section: SongSection;
   lyricsStyle: TextStyle;
   chordStyle: TextStyle;
   textColor: string;
+  transpose: number;
 }) {
   const showLabel = section.type !== 'none' || section.label;
 
@@ -143,13 +159,14 @@ function SectionView({
           line={line}
           lyricsStyle={lyricsStyle}
           chordStyle={chordStyle}
+          transpose={transpose}
         />
       ))}
     </View>
   );
 }
 
-export function SongView({ song }: SongViewProps) {
+export function SongView({ song, transpose = 0 }: SongViewProps) {
   const { settings } = useSettings();
 
   const lyricsStyle: TextStyle = useMemo(
@@ -180,6 +197,12 @@ export function SongView({ song }: SongViewProps) {
     [settings.chords]
   );
 
+  // Transpose key metadata if present
+  const displayKey = useMemo(() => {
+    if (!song.key || transpose === 0) return song.key;
+    return transposeChord(song.key, transpose);
+  }, [song.key, transpose]);
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: settings.backgroundColor }]}
@@ -201,11 +224,11 @@ export function SongView({ song }: SongViewProps) {
         </Text>
       )}
 
-      {(song.key || song.capo) && (
+      {(displayKey || song.capo) && (
         <View style={styles.metaRow}>
-          {song.key && (
+          {displayKey && (
             <Text style={[styles.meta, { color: settings.lyrics.color }]}>
-              Key: {song.key}
+              Key: {displayKey}
             </Text>
           )}
           {song.capo && (
@@ -224,6 +247,7 @@ export function SongView({ song }: SongViewProps) {
             lyricsStyle={lyricsStyle}
             chordStyle={chordStyle}
             textColor={settings.lyrics.color}
+            transpose={transpose}
           />
         ))}
       </View>
