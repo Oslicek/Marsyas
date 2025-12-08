@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 import { useSelectedSong } from '@/hooks/use-selected-song';
@@ -18,7 +18,7 @@ const NEW_SONG_TEMPLATE = `{title: New Song}
 
 export default function SongsScreen() {
   const { songs, isLoading, error, initResult, refresh } = useSongStorage();
-  const { selectSong, selectNewSong } = useSelectedSong();
+  const { selectSong, selectNewSong, songFilename, clearSelection } = useSelectedSong();
   const router = useRouter();
 
   // Refresh song list when tab becomes focused (catches renames from Tab 2)
@@ -67,6 +67,38 @@ export default function SongsScreen() {
     } catch (err) {
       console.error('Failed to create new song:', err);
     }
+  };
+
+  const handleDeleteSong = (songFile: SongFile) => {
+    const songName = songFile.filename.replace('.pro', '');
+    
+    Alert.alert(
+      'Delete Song',
+      `Are you sure you want to delete "${songName}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const service = createSongStorageService();
+              await service.deleteSong(songFile.filename);
+              
+              // Clear selection if deleted song was selected
+              if (songFilename === songFile.filename) {
+                clearSelection();
+              }
+              
+              // Refresh the list
+              refresh();
+            } catch (err) {
+              console.error('Failed to delete song:', err);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -118,18 +150,29 @@ export default function SongsScreen() {
         data={songs}
         keyExtractor={(item) => item.filename}
         renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [
-              styles.songItem,
-              pressed && styles.songItemPressed,
-            ]}
-            onPress={() => handleSongPress(item)}
-          >
-            <Text style={styles.songTitle}>
-              {item.filename.replace('.pro', '')}
-            </Text>
-            <Text style={styles.songArrow}>›</Text>
-          </Pressable>
+          <View style={styles.songRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.songItem,
+                pressed && styles.songItemPressed,
+              ]}
+              onPress={() => handleSongPress(item)}
+            >
+              <Text style={styles.songTitle}>
+                {item.filename.replace('.pro', '')}
+              </Text>
+              <Text style={styles.songArrow}>›</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed && styles.deleteButtonPressed,
+              ]}
+              onPress={() => handleDeleteSong(item)}
+            >
+              <Text style={styles.deleteButtonText}>✕</Text>
+            </Pressable>
+          </View>
         )}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No songs in library</Text>
@@ -183,13 +226,18 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 16,
   },
+  songRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
   songItem: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(150,150,150,0.2)',
     backgroundColor: 'transparent',
   },
   songItemPressed: {
@@ -203,6 +251,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     opacity: 0.4,
     marginLeft: 8,
+  },
+  deleteButton: {
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButtonPressed: {
+    opacity: 0.5,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontWeight: '600',
   },
   loadingText: {
     marginTop: 16,
