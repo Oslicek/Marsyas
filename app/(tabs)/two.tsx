@@ -6,6 +6,7 @@ import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { SongEditor } from '@/components/SongEditor';
 import { SongView, SongViewRef } from '@/components/SongView';
 import { Text, View } from '@/components/Themed';
+import { WysiwygEditor } from '@/components/WysiwygEditor';
 import { useSelectedSong } from '@/hooks/use-selected-song';
 import { useSettings } from '@/hooks/use-settings';
 import { parseChordPro } from '@/services/chordpro-parser';
@@ -22,11 +23,13 @@ const MAX_SCROLL_SPEED = 5.0;
 const DEFAULT_SCROLL_SPEED = 1.0;
 const SCROLL_SPEED_STEP = 0.5;
 const SCROLL_INTERVAL_MS = 50; // 20 FPS
+type EditMode = 'wysiwyg' | 'raw';
 
 export default function SongScreen() {
   const { selectedSong, songContent, songFilename, isNewSong, updateSong, clearNewSongFlag } = useSelectedSong();
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
+  const [editMode, setEditMode] = useState<EditMode>('wysiwyg');
   const [transpose, setTranspose] = useState(0);
   const [zoomScale, setZoomScale] = useState(DEFAULT_ZOOM);
   const savedScale = useSharedValue(DEFAULT_ZOOM);
@@ -38,13 +41,31 @@ export default function SongScreen() {
   const scrollPositionRef = useRef(0);
   const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Track the current song filename to detect changes
+  const previousFilenameRef = useRef<string | null>(null);
+
   // Auto-enter edit mode for new songs
   useEffect(() => {
     if (isNewSong) {
       setIsEditing(true);
+      setEditMode('wysiwyg');
       clearNewSongFlag();
     }
   }, [isNewSong, clearNewSongFlag]);
+
+  // Exit edit mode when a different song is selected
+  useEffect(() => {
+    // Only exit editing if we're switching from one valid song to another valid song
+    if (
+      songFilename && 
+      previousFilenameRef.current && 
+      songFilename !== previousFilenameRef.current
+    ) {
+      setIsEditing(false);
+    }
+    // Update ref after state change
+    previousFilenameRef.current = songFilename;
+  }, [songFilename]);
 
   // Autoscroll effect
   useEffect(() => {
@@ -79,6 +100,7 @@ export default function SongScreen() {
   const handleEdit = useCallback(() => {
     setIsScrolling(false);
     setIsEditing(true);
+    setEditMode('wysiwyg');
   }, []);
 
   const handleCancel = useCallback(() => {
@@ -189,11 +211,43 @@ export default function SongScreen() {
 
   if (isEditing) {
     return (
-      <SongEditor
-        content={songContent}
-        onSave={handleSave}
-        onCancel={handleCancel}
-      />
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.modeToggle}>
+            <Pressable
+              style={[styles.modeButton, editMode === 'wysiwyg' && styles.modeButtonActive]}
+              onPress={() => setEditMode('wysiwyg')}
+            >
+              <Text style={[styles.modeButtonText, editMode === 'wysiwyg' && styles.modeButtonTextActive]}>
+                WYSIWYG
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.modeButton, editMode === 'raw' && styles.modeButtonActive]}
+              onPress={() => setEditMode('raw')}
+            >
+              <Text style={[styles.modeButtonText, editMode === 'raw' && styles.modeButtonTextActive]}>
+                Raw
+              </Text>
+            </Pressable>
+          </View>
+          {editMode === 'wysiwyg' ? (
+            <WysiwygEditor 
+              key={songFilename || 'no-song'} 
+              content={songContent} 
+              onSave={handleSave} 
+              onCancel={handleCancel} 
+            />
+          ) : (
+            <SongEditor 
+              key={songFilename || 'no-song'} 
+              content={songContent} 
+              onSave={handleSave} 
+              onCancel={handleCancel} 
+            />
+          )}
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
@@ -477,5 +531,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.6,
     textAlign: 'center',
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+    gap: 8,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  modeButtonTextActive: {
+    color: '#FFFFFF',
   },
 });
