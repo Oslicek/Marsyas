@@ -25,6 +25,7 @@ interface WysiwygEditorProps {
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.0;
 const ZOOM_STEP = 0.1;
+const EDIT_PANEL_HEIGHT = 280; // Approximate height of the chord edit panel
 
 export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps) {
   const initialSong = useMemo(() => toEditableSong(parseChordPro(content)), [content]);
@@ -391,6 +392,9 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
       <ScrollView
         style={styles.scroll}
+        contentContainerStyle={{
+          paddingBottom: editingChord ? EDIT_PANEL_HEIGHT : 0,
+        }}
         onLayout={(e) => {
           const layout = e?.nativeEvent?.layout;
           if (!layout) return;
@@ -999,7 +1003,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'transparent',
   },
   editPanel: {
     borderTopLeftRadius: 20,
