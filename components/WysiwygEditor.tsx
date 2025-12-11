@@ -136,8 +136,25 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
           });
           
           if (lineDomNode && scrollDomNode && lineDomNode.offsetTop !== undefined) {
-            // Use offsetTop - position relative to offsetParent
-            const lineOffsetTop = lineDomNode.offsetTop;
+            // Calculate total offset by walking up the DOM tree
+            let totalOffsetTop = 0;
+            let element = lineDomNode;
+            
+            console.log('[Web] Walking DOM tree to calculate offset:');
+            while (element && element !== scrollDomNode) {
+              const offset = element.offsetTop || 0;
+              totalOffsetTop += offset;
+              console.log('[Web]   Element:', element.tagName || 'unknown', 'offsetTop:', offset, 'running total:', totalOffsetTop);
+              element = element.offsetParent;
+              
+              // Safety: stop if we've gone too far up
+              if (!element || element === document.body || element === document.documentElement) {
+                console.warn('[Web] Reached body/html without finding scroll container');
+                break;
+              }
+            }
+            
+            const lineOffsetTop = totalOffsetTop;
             const currentScrollTop = scrollDomNode.scrollTop || 0;
             const scrollHeight = scrollDomNode.scrollHeight || 0;
             const clientHeight = scrollDomNode.clientHeight || 0;
