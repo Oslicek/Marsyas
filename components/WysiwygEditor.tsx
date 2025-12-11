@@ -840,11 +840,14 @@ const styles = StyleSheet.create({
   },
   lineBlock: { marginBottom: 12 },
   chordRow: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 6,
+    width: '100%',
+    paddingRight: 100,
   },
   chordChip: {
     flexDirection: 'row',
@@ -875,8 +878,9 @@ const styles = StyleSheet.create({
   positionLabel: { fontSize: 12, fontWeight: '600', minWidth: 24, textAlign: 'center' },
   addChordButton: {
     position: 'absolute',
-    right: 0,
+    right: 8,
     top: 0,
+    borderRadius: 8,
     backgroundColor: '#34C759',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -924,9 +928,8 @@ const styles = StyleSheet.create({
     height: CHORD_OVERLAY_HEIGHT,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    ...(Platform.OS === 'web' ? {
-      width: '100%',
-    } : {}),
+    width: '100%',
+    paddingRight: 100,
   },
   overlayChip: {
     position: 'absolute',
