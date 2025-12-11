@@ -11,12 +11,19 @@ interface SongEditorProps {
   onCancel: () => void;
 }
 
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2.0;
+const ZOOM_STEP = 0.1;
+const BASE_FONT_SIZE = 14;
+const BASE_LINE_HEIGHT = 22;
+
 /**
  * Editor component for editing raw ChordPro content
  */
 export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
   const [editedContent, setEditedContent] = useState(content);
   const [hasChanges, setHasChanges] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1.0);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -36,6 +43,18 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
     const newContent = copyChordsToSections(editedContent);
     setEditedContent(newContent);
   }, [editedContent]);
+
+  const handleZoomIn = useCallback(() => {
+    setZoomScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomScale((prev) => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
+  }, []);
+
+  const handleZoomReset = useCallback(() => {
+    setZoomScale(1.0);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -74,6 +93,25 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
         >
           <Text style={styles.toolButtonText}>📋 Copy Chords</Text>
         </Pressable>
+
+        {/* Zoom controls */}
+        <View style={styles.zoomControls}>
+          <Pressable
+            onPress={handleZoomOut}
+            style={styles.zoomButton}
+          >
+            <Text style={styles.zoomButtonText}>A−</Text>
+          </Pressable>
+          <Pressable onPress={handleZoomReset} style={styles.zoomValue}>
+            <Text style={styles.zoomValueText}>{Math.round(zoomScale * 100)}%</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleZoomIn}
+            style={styles.zoomButton}
+          >
+            <Text style={styles.zoomButtonText}>A+</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Editor */}
@@ -87,6 +125,8 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
             { 
               color: isDark ? '#fff' : '#000',
               backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
+              fontSize: BASE_FONT_SIZE * zoomScale,
+              lineHeight: BASE_LINE_HEIGHT * zoomScale,
             }
           ]}
           value={editedContent}
@@ -150,11 +190,45 @@ const styles = StyleSheet.create({
   },
   toolsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
     gap: 8,
+  },
+  zoomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  zoomButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(150,150,150,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  zoomValue: {
+    minWidth: 44,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  zoomValueText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   toolButton: {
     paddingVertical: 8,
@@ -176,8 +250,6 @@ const styles = StyleSheet.create({
   editor: {
     flex: 1,
     fontFamily: 'SpaceMono',
-    fontSize: 14,
-    lineHeight: 22,
     padding: 16,
     minHeight: 400,
     textAlignVertical: 'top',

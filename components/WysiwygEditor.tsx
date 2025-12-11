@@ -21,11 +21,16 @@ interface WysiwygEditorProps {
   onCancel: () => void;
 }
 
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2.0;
+const ZOOM_STEP = 0.1;
+
 export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps) {
   const initialSong = useMemo(() => toEditableSong(parseChordPro(content)), [content]);
   const initialChordProRef = useRef(content);
 
   const [song, setSong] = useState<EditableSong>(initialSong);
+  const [zoomScale, setZoomScale] = useState(1.0);
   const [dragChord, setDragChord] = useState<{
     chord: EditableChord;
     fromSection: string;
@@ -199,6 +204,18 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     onSave(serialized);
   }, [onSave, serialized]);
 
+  const handleZoomIn = useCallback(() => {
+    setZoomScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomScale((prev) => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
+  }, []);
+
+  const handleZoomReset = useCallback(() => {
+    setZoomScale(1.0);
+  }, []);
+
   const handleLineLayout = useCallback(
     (sectionId: string, lineId: string, e: LayoutChangeEvent) => {
       const { x, y, height, width } = e.nativeEvent.layout;
@@ -260,6 +277,26 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>WYSIWYG Editor {hasChanges ? '•' : ''}</Text>
+        
+        {/* Zoom controls */}
+        <View style={styles.zoomControls}>
+          <Pressable
+            onPress={handleZoomOut}
+            style={styles.zoomButton}
+          >
+            <Text style={styles.zoomButtonText}>A−</Text>
+          </Pressable>
+          <Pressable onPress={handleZoomReset} style={styles.zoomValue}>
+            <Text style={styles.zoomValueText}>{Math.round(zoomScale * 100)}%</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleZoomIn}
+            style={styles.zoomButton}
+          >
+            <Text style={styles.zoomButtonText}>A+</Text>
+          </Pressable>
+        </View>
+
         <Pressable
           onPress={handleSave}
           disabled={!hasChanges}
@@ -298,6 +335,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                         lyrics={line.lyrics}
                         lineWidth={lineWidths[line.id]}
                         isDark={isDark}
+                        zoomScale={zoomScale}
                         onChangeChord={(chId, text) => updateChordText(section.id, line.id, chId, text)}
                         onDragStart={(ch) => handleDragStart(ch, section.id, line.id)}
                         onDragMove={(x, y) => handleDrag(x, y)}
@@ -311,8 +349,8 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                             color: isDark ? '#fff' : '#000',
                             backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
                             fontFamily: EDIT_FONT_FAMILY,
-                            fontSize: EDIT_FONT_SIZE,
-                            lineHeight: EDIT_LINE_HEIGHT,
+                            fontSize: EDIT_FONT_SIZE * zoomScale,
+                            lineHeight: EDIT_LINE_HEIGHT * zoomScale,
                           },
                         ]}
                         multiline
@@ -341,6 +379,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       onDragEnd={handleDragEnd}
                       onAdd={() => addChord(section.id, line.id)}
                       isDark={isDark}
+                      zoomScale={zoomScale}
                     />
                   )}
                 </View>
@@ -369,6 +408,7 @@ function ChordRow({
   onDragEnd,
   onAdd,
   isDark,
+  zoomScale,
 }: {
   chords: EditableChord[];
   onChangeChord: (id: string, text: string) => void;
@@ -377,6 +417,7 @@ function ChordRow({
   onDragEnd: () => void;
   onAdd: () => void;
   isDark: boolean;
+  zoomScale: number;
 }) {
   return (
     <View style={styles.chordRow}>
@@ -394,7 +435,11 @@ function ChordRow({
             <TextInput
               style={[
                 styles.chordInput,
-                { color: isDark ? '#fff' : '#000' },
+                {
+                  color: isDark ? '#fff' : '#000',
+                  fontFamily: EDIT_FONT_FAMILY,
+                  fontSize: EDIT_FONT_SIZE * zoomScale,
+                },
               ]}
               placeholder="Chord"
               placeholderTextColor={isDark ? '#aaa' : '#666'}
@@ -403,14 +448,6 @@ function ChordRow({
               autoCapitalize="characters"
               autoCorrect={false}
               selectTextOnFocus
-                  style={[
-                    styles.chordInput,
-                    {
-                      color: isDark ? '#fff' : '#000',
-                      fontFamily: EDIT_FONT_FAMILY,
-                      fontSize: EDIT_FONT_SIZE,
-                    },
-                  ]}
             />
           </View>
         </GestureDetector>
@@ -497,6 +534,7 @@ function InteractiveChordOverlay({
   lyrics,
   lineWidth,
   isDark,
+  zoomScale,
   onChangeChord,
   onDragStart,
   onDragMove,
@@ -507,6 +545,7 @@ function InteractiveChordOverlay({
   lyrics: string;
   lineWidth?: number;
   isDark: boolean;
+  zoomScale: number;
   onChangeChord: (id: string, text: string) => void;
   onDragStart: (chord: EditableChord) => void;
   onDragMove: (x: number, y: number) => void;
@@ -551,7 +590,7 @@ function InteractiveChordOverlay({
                       minWidth: 28,
                       textAlign: 'left',
                       fontFamily: EDIT_FONT_FAMILY,
-                      fontSize: EDIT_FONT_SIZE,
+                      fontSize: EDIT_FONT_SIZE * zoomScale,
                       borderWidth: 0,
                     },
                   ]}
@@ -575,7 +614,7 @@ function InteractiveChordOverlay({
       <Text
         style={[
           styles.hiddenMeasure,
-          { fontFamily: EDIT_FONT_FAMILY, fontSize: EDIT_FONT_SIZE },
+          { fontFamily: EDIT_FONT_FAMILY, fontSize: EDIT_FONT_SIZE * zoomScale },
         ]}
         onLayout={(e) => setMeasuredWidth(e.nativeEvent.layout.width)}
       >
@@ -602,6 +641,38 @@ const styles = StyleSheet.create({
   save: { fontSize: 16, fontWeight: '600', color: '#007AFF', textAlign: 'right' },
   disabledButton: { opacity: 0.5 },
   disabledText: { color: '#999' },
+  zoomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  zoomButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(150,150,150,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  zoomValue: {
+    minWidth: 44,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  zoomValueText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
   scroll: { flex: 1, paddingHorizontal: 12 },
   section: { marginTop: 12, marginBottom: 8 },
   sectionLabel: {
