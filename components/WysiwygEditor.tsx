@@ -63,21 +63,41 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   // Auto-scroll to edited chord when panel opens
   useEffect(() => {
     if (editingChord && scrollViewRef.current && scrollViewHeight > 0) {
+      console.log('Auto-scroll triggered:', {
+        editingChord,
+        scrollViewHeight,
+        lineBoundsCount: lineBounds.length,
+      });
+      
       const lineBlock = lineBounds.find(
         (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
       );
+      
+      console.log('Found lineBlock:', lineBlock);
+      
       if (lineBlock) {
         // Calculate visible area above the panel
         const visibleHeight = scrollViewHeight - EDIT_PANEL_HEIGHT;
-        // We want the line to be in the top half of the visible area
-        const targetY = lineBlock.top - (visibleHeight * 0.3);
+        // We want the line to be visible in the top portion of visible area
+        const targetY = lineBlock.top - (visibleHeight * 0.2);
+        
+        console.log('Scrolling to:', {
+          lineTop: lineBlock.top,
+          visibleHeight,
+          targetY: Math.max(0, targetY),
+          currentScroll: scrollOffset,
+        });
         
         setTimeout(() => {
-          scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
-        }, 150);
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ y: Math.max(0, targetY), animated: true });
+          }
+        }, 200);
+      } else {
+        console.warn('LineBlock not found for editing chord');
       }
     }
-  }, [editingChord, lineBounds, scrollViewHeight]);
+  }, [editingChord, lineBounds, scrollViewHeight, scrollOffset]);
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
@@ -422,6 +442,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
           if (!layout) return;
           setScrollOrigin({ x: layout.x, y: layout.y });
           setScrollViewHeight(layout.height);
+          console.log('ScrollView layout:', { height: layout.height, paddingBottom: editingChord ? EDIT_PANEL_HEIGHT : 0 });
         }}
         onScroll={(e) => setScrollOffset(e.nativeEvent.contentOffset.y)}
         scrollEventThrottle={16}
@@ -558,14 +579,16 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       )}
 
       {/* Chord Edit Panel */}
-      {editingChord && (
-        <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
-          <View style={styles.panelHeader}>
-            <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
-            <Pressable onPress={() => setEditingChord(null)}>
-              <Text style={styles.doneButton}>Done</Text>
-            </Pressable>
-          </View>
+      {editingChord && (() => {
+        console.log('Edit panel rendering for chord:', editingChord);
+        return (
+          <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
+            <View style={styles.panelHeader}>
+              <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
+              <Pressable onPress={() => setEditingChord(null)}>
+                <Text style={styles.doneButton}>Done</Text>
+              </Pressable>
+            </View>
 
           <View style={styles.panelContent}>
             <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000' }]}>Chord Name</Text>
@@ -623,7 +646,8 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             </Pressable>
           </View>
         </View>
-      )}
+        );
+      })()}
     </View>
   );
 }
