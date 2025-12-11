@@ -40,7 +40,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     position: number;
     maxPosition: number;
   } | null>(null);
-  const [modifiedChords, setModifiedChords] = useState<Set<string>>(new Set());
   const [dragChord, setDragChord] = useState<{
     chord: EditableChord;
     fromSection: string;
@@ -75,9 +74,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   }, []);
 
   const updateChordText = useCallback((sectionId: string, lineId: string, chordId: string, text: string) => {
-    // Mark chord as modified
-    setModifiedChords(prev => new Set(prev).add(chordId));
-    
     setSong((prev) => ({
       ...prev,
       sections: prev.sections.map((section) =>
@@ -177,10 +173,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       ),
     }));
     
-    // Mark the new chord as modified (will be shown in green)
-    setModifiedChords(prev => new Set(prev).add(newChordId));
-    
-    // Open edit panel immediately for the new chord
+    // Open edit panel immediately for the new chord (will show it in green)
     setEditingChord({
       sectionId,
       lineId,
@@ -210,9 +203,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   }, []);
 
   const setChordPosition = useCallback((sectionId: string, lineId: string, chordId: string, position: number) => {
-    // Mark chord as modified
-    setModifiedChords(prev => new Set(prev).add(chordId));
-    
     setSong((prev) => ({
       ...prev,
       sections: prev.sections.map((section) =>
@@ -437,7 +427,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                           lineId={line.id}
                           isDark={isDark}
                           zoomScale={zoomScale}
-                          modifiedChords={modifiedChords}
+                          editingChordId={editingChord?.chordId}
                           onChordPress={(ch) => {
                             setEditingChord({
                               sectionId: section.id,
@@ -483,7 +473,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       line={line}
                       sectionId={section.id}
                       lineId={line.id}
-                      modifiedChords={modifiedChords}
+                      editingChordId={editingChord?.chordId}
                       onChordPress={(ch) => {
                         setEditingChord({
                           sectionId: section.id,
@@ -628,7 +618,7 @@ function ChordRow({
   line: EditableLine;
   sectionId: string;
   lineId: string;
-  modifiedChords: Set<string>;
+  editingChordId?: string;
   onChordPress: (chord: EditableChord) => void;
   isDark: boolean;
   zoomScale: number;
@@ -636,7 +626,7 @@ function ChordRow({
   return (
     <View style={styles.chordRow}>
       {chords.map((ch) => {
-        const isModified = modifiedChords.has(ch.id);
+        const isBeingEdited = editingChordId === ch.id;
         return (
           <Pressable
             key={ch.id}
@@ -647,7 +637,7 @@ function ChordRow({
               style={[
                 styles.chordInput,
                 {
-                  color: isModified ? '#34C759' : '#007AFF',
+                  color: isBeingEdited ? '#34C759' : '#007AFF',
                   fontFamily: EDIT_FONT_FAMILY,
                   fontSize: EDIT_FONT_SIZE * zoomScale,
                   fontWeight: '600',
@@ -740,7 +730,7 @@ function InteractiveChordOverlay({
   lineId,
   isDark,
   zoomScale,
-  modifiedChords,
+  editingChordId,
   onChordPress,
 }: {
   chords: EditableChord[];
@@ -750,7 +740,7 @@ function InteractiveChordOverlay({
   lineId: string;
   isDark: boolean;
   zoomScale: number;
-  modifiedChords: Set<string>;
+  editingChordId?: string;
   onChordPress: (chord: EditableChord) => void;
 }) {
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
@@ -773,7 +763,7 @@ function InteractiveChordOverlay({
         {chords.map((ch) => {
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
-          const isModified = modifiedChords.has(ch.id);
+          const isBeingEdited = editingChordId === ch.id;
           return (
             <Pressable
               key={ch.id}
@@ -790,7 +780,7 @@ function InteractiveChordOverlay({
             >
               <Text
                 style={{
-                  color: isModified ? '#34C759' : '#007AFF',
+                  color: isBeingEdited ? '#34C759' : '#007AFF',
                   paddingVertical: 2 * zoomScale,
                   paddingHorizontal: 2 * zoomScale,
                   textAlign: 'center',
