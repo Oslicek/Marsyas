@@ -460,7 +460,10 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                   )}
 
                   <Pressable
-                    onPress={() => addChord(section.id, line.id)}
+                    onPress={() => {
+                      console.log('Button pressed:', section.id, line.id);
+                      addChord(section.id, line.id);
+                    }}
                     style={[
                       styles.addChordButton,
                       {
@@ -469,8 +472,15 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                         borderRadius: 8 * zoomScale,
                       },
                     ]}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    testID={`add-chord-${line.id}`}
                   >
-                    <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
+                    <Text 
+                      style={[styles.addChordText, { fontSize: 12 * zoomScale }]}
+                      pointerEvents="none"
+                    >
+                      + Chord
+                    </Text>
                   </Pressable>
                 </View>
               );
@@ -877,6 +887,7 @@ const styles = StyleSheet.create({
   },
   lineScrollContainer: {
     width: '100%',
+    paddingRight: 100,
     ...(Platform.OS === 'web' ? {
       overflow: 'auto',
     } : {}),
@@ -899,7 +910,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
+    right: 100,
     height: CHORD_OVERLAY_HEIGHT,
     zIndex: 1,
     ...(Platform.OS === 'web' ? {
