@@ -482,7 +482,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
         animationType="slide"
         onRequestClose={() => setEditingChord(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setEditingChord(null)}>
+        <View style={styles.modalOverlay}>
           <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
             <View style={styles.panelHeader}>
               <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
@@ -547,7 +547,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
               </Pressable>
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </View>
   );
