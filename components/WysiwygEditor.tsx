@@ -63,62 +63,96 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   // Auto-scroll to edited chord when panel opens
   useEffect(() => {
-    if (!editingChord || !scrollViewRef.current) {
+    if (!editingChord || !scrollViewRef.current || scrollViewHeight === 0) {
       return;
     }
     
-    const lineKey = `${editingChord.sectionId}-${editingChord.lineId}`;
-    const lineView = lineRefs.current.get(lineKey);
-    
-    if (!lineView) {
-      console.warn('Line view not found for:', lineKey);
-      return;
-    }
-    
-    // Use measureLayout to get position relative to ScrollView
     const scrollTimer = setTimeout(() => {
-      lineView.measureLayout(
-        // @ts-ignore - ScrollView does have a native view handle
-        scrollViewRef.current,
-        (left, top, width, height) => {
-          if (!scrollViewRef.current || scrollViewHeight === 0) {
-            return;
-          }
-          
-          console.log('Measured line position:', {
-            chordId: editingChord.chordId,
-            top,
-            height,
-            scrollViewHeight,
-            panelHeight: EDIT_PANEL_HEIGHT,
-          });
-          
-          // Calculate visible area (viewport minus panel)
-          const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
-          
-          // We want the line to be visible in the top portion of the available space
-          // Target: place line at 20% from top of visible area
-          const targetScrollY = Math.max(0, top - (visibleArea * 0.2));
-          
-          console.log('Scrolling to:', {
-            targetScrollY,
-            visibleArea,
-            calculation: `${top} - (${visibleArea} * 0.2)`,
-          });
-          
-          scrollViewRef.current?.scrollTo({
-            y: targetScrollY,
-            animated: true,
-          });
-        },
-        (error) => {
-          console.error('measureLayout failed:', error);
+      if (!scrollViewRef.current || scrollViewHeight === 0) {
+        return;
+      }
+      
+      // Platform-specific scroll implementation
+      if (Platform.OS === 'web') {
+        // Web: Use lineBounds state (more reliable on web)
+        const lineBlock = lineBounds.find(
+          (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
+        );
+        
+        if (!lineBlock) {
+          console.warn('[Web] LineBlock not found for:', editingChord);
+          return;
         }
-      );
-    }, 200); // Small delay to ensure panel is rendered
+        
+        console.log('[Web] Line position from state:', {
+          chordId: editingChord.chordId,
+          top: lineBlock.top,
+          scrollViewHeight,
+          panelHeight: EDIT_PANEL_HEIGHT,
+        });
+        
+        const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+        const targetScrollY = Math.max(0, lineBlock.top - (visibleArea * 0.2));
+        
+        console.log('[Web] Scrolling to:', {
+          targetScrollY,
+          visibleArea,
+          calculation: `${lineBlock.top} - (${visibleArea} * 0.2)`,
+        });
+        
+        scrollViewRef.current.scrollTo({
+          y: targetScrollY,
+          animated: true,
+        });
+      } else {
+        // Android/iOS: Use measureLayout (more reliable on native)
+        const lineKey = `${editingChord.sectionId}-${editingChord.lineId}`;
+        const lineView = lineRefs.current.get(lineKey);
+        
+        if (!lineView) {
+          console.warn('[Native] Line view not found for:', lineKey);
+          return;
+        }
+        
+        lineView.measureLayout(
+          // @ts-ignore - ScrollView does have a native view handle
+          scrollViewRef.current,
+          (left, top, width, height) => {
+            if (!scrollViewRef.current || scrollViewHeight === 0) {
+              return;
+            }
+            
+            console.log('[Native] Measured line position:', {
+              chordId: editingChord.chordId,
+              top,
+              height,
+              scrollViewHeight,
+              panelHeight: EDIT_PANEL_HEIGHT,
+            });
+            
+            const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+            const targetScrollY = Math.max(0, top - (visibleArea * 0.2));
+            
+            console.log('[Native] Scrolling to:', {
+              targetScrollY,
+              visibleArea,
+              calculation: `${top} - (${visibleArea} * 0.2)`,
+            });
+            
+            scrollViewRef.current?.scrollTo({
+              y: targetScrollY,
+              animated: true,
+            });
+          },
+          (error) => {
+            console.error('[Native] measureLayout failed:', error);
+          }
+        );
+      }
+    }, 200);
     
     return () => clearTimeout(scrollTimer);
-  }, [editingChord?.chordId, scrollViewHeight]); // Trigger when chord changes or viewport resizes
+  }, [editingChord?.chordId, scrollViewHeight, lineBounds]); // Include lineBounds for web
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
@@ -691,6 +725,7 @@ function ChordRow({
   line,
   sectionId,
   lineId,
+  editingChordId,
   onChordPress,
   isDark,
   zoomScale,
