@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { Text } from './Themed';
@@ -732,13 +732,23 @@ const styles = StyleSheet.create({
   addChordText: { color: '#007AFF', fontWeight: '600' },
   lineScrollContainer: {
     width: '100%',
+    ...(Platform.OS === 'web' ? {
+      overflow: 'auto',
+    } : {}),
   },
   lineScrollContent: {
     flexGrow: 1,
+    ...(Platform.OS === 'web' ? {
+      minWidth: '100%',
+    } : {}),
   },
   lyricsWrapper: {
     position: 'relative',
     flexDirection: 'column',
+    ...(Platform.OS === 'web' ? {
+      width: '100%',
+      minWidth: '100%',
+    } : {}),
   },
   chordsOverlay: {
     position: 'absolute',
@@ -747,17 +757,26 @@ const styles = StyleSheet.create({
     right: 0,
     height: CHORD_OVERLAY_HEIGHT,
     zIndex: 1,
+    ...(Platform.OS === 'web' ? {
+      pointerEvents: 'none',
+    } : {}),
   },
   chordOverlayRow: {
     position: 'relative',
     height: CHORD_OVERLAY_HEIGHT,
     flexDirection: 'row',
     alignItems: 'flex-end',
+    ...(Platform.OS === 'web' ? {
+      width: '100%',
+    } : {}),
   },
   overlayChip: {
     position: 'absolute',
     backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: 4,
+    ...(Platform.OS === 'web' ? {
+      pointerEvents: 'auto',
+    } : {}),
   },
   overlayText: {
     fontWeight: '700',
@@ -776,6 +795,10 @@ const styles = StyleSheet.create({
     borderWidth: LYRICS_BORDER,
     borderColor: 'rgba(0,0,0,0.08)',
     textAlignVertical: 'top',
+    ...(Platform.OS === 'web' ? {
+      width: '100%',
+      boxSizing: 'border-box',
+    } : {}),
   },
 });
 
