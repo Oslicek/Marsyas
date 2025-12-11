@@ -535,79 +535,72 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       )}
 
       {/* Chord Edit Panel */}
-      <Modal
-        visible={editingChord !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setEditingChord(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
-            <View style={styles.panelHeader}>
-              <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
-              <Pressable onPress={() => setEditingChord(null)}>
-                <Text style={styles.doneButton}>Done</Text>
-              </Pressable>
-            </View>
+      {editingChord && (
+        <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
+          <View style={styles.panelHeader}>
+            <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
+            <Pressable onPress={() => setEditingChord(null)}>
+              <Text style={styles.doneButton}>Done</Text>
+            </Pressable>
+          </View>
 
-            <View style={styles.panelContent}>
-              <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000' }]}>Chord Name</Text>
-              <TextInput
-                style={[
-                  styles.chordNameInput,
-                  {
-                    color: isDark ? '#fff' : '#000',
-                    backgroundColor: isDark ? '#2c2c2e' : '#f5f5f5',
-                  },
-                ]}
-                value={editingChord?.chord || ''}
-                onChangeText={(text) => {
-                  if (editingChord) {
-                    updateChordText(editingChord.sectionId, editingChord.lineId, editingChord.chordId, text);
-                    setEditingChord({ ...editingChord, chord: text });
-                  }
-                }}
-                autoFocus
-                selectTextOnFocus
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
+          <View style={styles.panelContent}>
+            <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000' }]}>Chord Name</Text>
+            <TextInput
+              style={[
+                styles.chordNameInput,
+                {
+                  color: isDark ? '#fff' : '#000',
+                  backgroundColor: isDark ? '#2c2c2e' : '#f5f5f5',
+                },
+              ]}
+              value={editingChord?.chord || ''}
+              onChangeText={(text) => {
+                if (editingChord) {
+                  updateChordText(editingChord.sectionId, editingChord.lineId, editingChord.chordId, text);
+                  setEditingChord({ ...editingChord, chord: text });
+                }
+              }}
+              autoFocus
+              selectTextOnFocus
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
 
-              <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
-                Position: {editingChord?.position || 0} / {editingChord?.maxPosition || 0}
-              </Text>
-              <Slider
-                style={styles.positionSlider}
-                value={editingChord?.position || 0}
-                minimumValue={0}
-                maximumValue={editingChord?.maxPosition || 0}
-                step={1}
-                minimumTrackTintColor="#007AFF"
-                maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
-                thumbTintColor="#007AFF"
-                onValueChange={(value) => {
-                  if (editingChord) {
-                    setChordPosition(editingChord.sectionId, editingChord.lineId, editingChord.chordId, Math.round(value));
-                    setEditingChord({ ...editingChord, position: Math.round(value) });
-                  }
-                }}
-              />
+            <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
+              Position: {editingChord?.position || 0} / {editingChord?.maxPosition || 0}
+            </Text>
+            <Slider
+              style={styles.positionSlider}
+              value={editingChord?.position || 0}
+              minimumValue={0}
+              maximumValue={editingChord?.maxPosition || 0}
+              step={1}
+              minimumTrackTintColor="#007AFF"
+              maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
+              thumbTintColor="#007AFF"
+              onValueChange={(value) => {
+                if (editingChord) {
+                  setChordPosition(editingChord.sectionId, editingChord.lineId, editingChord.chordId, Math.round(value));
+                  setEditingChord({ ...editingChord, position: Math.round(value) });
+                }
+              }}
+            />
 
-              <Pressable
-                style={styles.deleteButton}
-                onPress={() => {
-                  if (editingChord) {
-                    deleteChord(editingChord.sectionId, editingChord.lineId, editingChord.chordId);
-                    setEditingChord(null);
-                  }
-                }}
-              >
-                <Text style={styles.deleteButtonText}>Delete Chord</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={styles.deleteButton}
+              onPress={() => {
+                if (editingChord) {
+                  deleteChord(editingChord.sectionId, editingChord.lineId, editingChord.chordId);
+                  setEditingChord(null);
+                }
+              }}
+            >
+              <Text style={styles.deleteButtonText}>Delete Chord</Text>
+            </Pressable>
           </View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -1000,12 +993,11 @@ const styles = StyleSheet.create({
       boxSizing: 'border-box',
     } : {}),
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'transparent',
-  },
   editPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 34,
@@ -1014,6 +1006,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    zIndex: 100,
   },
   panelHeader: {
     flexDirection: 'row',
