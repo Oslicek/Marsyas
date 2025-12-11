@@ -583,9 +583,10 @@ function InteractiveChordOverlay({
                 {
                   left,
                   paddingVertical: 2 * zoomScale,
-                  paddingRight: 4 * zoomScale,
+                  paddingHorizontal: 4 * zoomScale,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  maxWidth: 60 * zoomScale,
                 }
               ]}
             >
@@ -594,16 +595,17 @@ function InteractiveChordOverlay({
                   {
                     color: '#007AFF',
                     paddingVertical: 2 * zoomScale,
-                    paddingHorizontal: 4 * zoomScale,
-                    minWidth: 28 * zoomScale,
-                    textAlign: 'left',
+                    paddingHorizontal: 2 * zoomScale,
+                    minWidth: 20 * zoomScale,
+                    maxWidth: 50 * zoomScale,
+                    textAlign: 'center',
                     fontFamily: EDIT_FONT_FAMILY,
                     fontSize: EDIT_FONT_SIZE * zoomScale,
                     borderWidth: 0,
                     fontWeight: '600',
                   },
                 ]}
-                placeholder="Chord"
+                placeholder="C"
                 placeholderTextColor={isDark ? '#aaa' : '#666'}
                 value={ch.chord}
                 onChangeText={(t) => onChangeChord(ch.id, t)}
@@ -706,12 +708,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chordInput: {
-    minWidth: 40,
+    minWidth: 30,
+    maxWidth: 60,
     paddingVertical: 4,
     paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
     borderRadius: 6,
+    textAlign: 'center',
   },
   chordControls: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   shiftButton: {
@@ -774,8 +778,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: 4,
+    maxWidth: 60,
     ...(Platform.OS === 'web' ? {
       pointerEvents: 'auto',
+      display: 'inline-block',
     } : {}),
   },
   overlayText: {
