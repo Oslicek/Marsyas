@@ -74,36 +74,81 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       
       // Platform-specific scroll implementation
       if (Platform.OS === 'web') {
-        // Web: Use lineBounds state (more reliable on web)
-        const lineBlock = lineBounds.find(
-          (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
-        );
+        // Web: Use native DOM APIs
+        const lineKey = `${editingChord.sectionId}-${editingChord.lineId}`;
+        const lineView = lineRefs.current.get(lineKey);
         
-        if (!lineBlock) {
-          console.warn('[Web] LineBlock not found for:', editingChord);
+        if (!lineView) {
+          console.warn('[Web] Line view not found for:', lineKey);
           return;
         }
         
-        console.log('[Web] Line position from state:', {
-          chordId: editingChord.chordId,
-          top: lineBlock.top,
-          scrollViewHeight,
-          panelHeight: EDIT_PANEL_HEIGHT,
-        });
-        
-        const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
-        const targetScrollY = Math.max(0, lineBlock.top - (visibleArea * 0.2));
-        
-        console.log('[Web] Scrolling to:', {
-          targetScrollY,
-          visibleArea,
-          calculation: `${lineBlock.top} - (${visibleArea} * 0.2)`,
-        });
-        
-        scrollViewRef.current.scrollTo({
-          y: targetScrollY,
-          animated: true,
-        });
+        try {
+          // @ts-ignore - Access DOM node
+          const lineElement = lineView._nativeTag ? document.querySelector(`[data-tag="${lineView._nativeTag}"]`) : lineView;
+          // @ts-ignore - Access DOM node
+          const scrollElement = scrollViewRef.current._nativeTag 
+            ? document.querySelector(`[data-tag="${scrollViewRef.current._nativeTag}"]`) 
+            : scrollViewRef.current;
+          
+          if (!lineElement || !scrollElement) {
+            console.warn('[Web] Could not find DOM elements');
+            
+            // Fallback to lineBounds state
+            const lineBlock = lineBounds.find(
+              (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
+            );
+            
+            if (lineBlock) {
+              const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+              const targetScrollY = Math.max(0, lineBlock.top - (visibleArea * 0.2));
+              
+              console.log('[Web] Fallback scroll using state:', { targetScrollY, lineTop: lineBlock.top });
+              
+              scrollViewRef.current.scrollTo({ y: targetScrollY, animated: true });
+            }
+            return;
+          }
+          
+          const lineRect = lineElement.getBoundingClientRect();
+          const scrollRect = scrollElement.getBoundingClientRect();
+          const currentScrollTop = scrollElement.scrollTop || 0;
+          
+          // Calculate line position relative to scroll container
+          const lineTopRelativeToScroll = lineRect.top - scrollRect.top + currentScrollTop;
+          
+          console.log('[Web] DOM measurement:', {
+            chordId: editingChord.chordId,
+            lineTopRelativeToScroll,
+            currentScrollTop,
+            lineRect: { top: lineRect.top, height: lineRect.height },
+            scrollRect: { top: scrollRect.top, height: scrollRect.height },
+            scrollViewHeight,
+            panelHeight: EDIT_PANEL_HEIGHT,
+          });
+          
+          // Calculate visible area (viewport minus panel)
+          const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+          const targetScrollY = Math.max(0, lineTopRelativeToScroll - (visibleArea * 0.2));
+          
+          console.log('[Web] Scrolling to:', {
+            targetScrollY,
+            visibleArea,
+            calculation: `${lineTopRelativeToScroll} - (${visibleArea} * 0.2)`,
+          });
+          
+          // Use native scrollTo for better control on web
+          if (scrollElement.scrollTo) {
+            scrollElement.scrollTo({
+              top: targetScrollY,
+              behavior: 'smooth',
+            });
+          } else {
+            scrollViewRef.current.scrollTo({ y: targetScrollY, animated: true });
+          }
+        } catch (error) {
+          console.error('[Web] DOM measurement error:', error);
+        }
       } else {
         // Android/iOS: Use measureLayout (more reliable on native)
         const lineKey = `${editingChord.sectionId}-${editingChord.lineId}`;
@@ -149,10 +194,10 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
           }
         );
       }
-    }, 200);
+    }, 250); // Slightly longer delay for web DOM
     
     return () => clearTimeout(scrollTimer);
-  }, [editingChord?.chordId, scrollViewHeight, lineBounds]); // Include lineBounds for web
+  }, [editingChord?.chordId, scrollViewHeight]); // Don't include lineBounds to avoid retriggers
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
