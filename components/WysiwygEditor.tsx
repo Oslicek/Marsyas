@@ -62,40 +62,50 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   // Auto-scroll to edited chord when panel opens
   useEffect(() => {
-    if (!editingChord || !scrollViewRef.current || scrollViewHeight === 0) {
+    if (!editingChord) {
       return;
     }
     
-    // Only scroll when chord changes (not on every scroll/render)
-    const lineBlock = lineBounds.find(
-      (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
-    );
-    
-    if (!lineBlock) {
-      console.warn('LineBlock not found for editing chord');
-      return;
-    }
-    
-    console.log('Auto-scroll triggered:', {
-      chordId: editingChord.chordId,
-      lineTop: lineBlock.top,
-      scrollViewHeight,
-    });
-    
-    // Calculate where to scroll so the line appears in the visible area above the panel
-    // We want some spacing from the top, so the line is comfortably visible
-    const SPACING_FROM_TOP = 80; // px from top of screen
-    const targetY = Math.max(0, lineBlock.top - SPACING_FROM_TOP);
-    
-    console.log('Scrolling to:', targetY);
-    
-    // Delay to ensure layout is complete
+    // Delay to ensure panel is rendered and layout is complete
     const scrollTimer = setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
-    }, 100);
+      if (!scrollViewRef.current || scrollViewHeight === 0 || lineBounds.length === 0) {
+        console.warn('Cannot scroll: missing scroll ref, height, or lineBounds');
+        return;
+      }
+      
+      const lineBlock = lineBounds.find(
+        (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
+      );
+      
+      if (!lineBlock) {
+        console.warn('LineBlock not found for chord:', editingChord);
+        return;
+      }
+      
+      console.log('Auto-scroll:', {
+        chord: editingChord.chordId,
+        lineTop: lineBlock.top,
+        lineBottom: lineBlock.bottom,
+        viewportHeight: scrollViewHeight,
+        panelHeight: EDIT_PANEL_HEIGHT,
+      });
+      
+      // Calculate visible area (viewport minus panel at bottom)
+      const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+      // Position line in upper third of visible area for best visibility
+      const targetY = Math.max(0, lineBlock.top - (visibleArea * 0.25));
+      
+      console.log('Scroll decision:', {
+        visibleArea,
+        targetY,
+        calculation: `${lineBlock.top} - (${visibleArea} * 0.25) = ${targetY}`,
+      });
+      
+      scrollViewRef.current.scrollTo({ y: targetY, animated: true });
+    }, 400); // Longer delay to ensure everything is stable
     
     return () => clearTimeout(scrollTimer);
-  }, [editingChord?.chordId]); // Only trigger when the chord ID changes
+  }, [editingChord?.chordId]); // Only when chord ID changes
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
