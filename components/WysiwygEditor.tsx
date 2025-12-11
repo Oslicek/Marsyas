@@ -25,7 +25,7 @@ interface WysiwygEditorProps {
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.0;
 const ZOOM_STEP = 0.1;
-const EDIT_PANEL_HEIGHT = 280; // Approximate height of the chord edit panel
+const EDIT_PANEL_HEIGHT = 320; // Height of the chord edit panel + safe area
 
 export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps) {
   const initialSong = useMemo(() => toEditableSong(parseChordPro(content)), [content]);
@@ -54,6 +54,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   const [lineWidths, setLineWidths] = useState<{ lineId: string; width: number }>({});
   const [scrollOffset, setScrollOffset] = useState(0);
   const [scrollOrigin, setScrollOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
   const serialized = useMemo(() => fromEditableSong(song), [song]);
   const hasChanges = serialized !== initialChordProRef.current;
@@ -61,19 +62,22 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   // Auto-scroll to edited chord when panel opens
   useEffect(() => {
-    if (editingChord && scrollViewRef.current) {
+    if (editingChord && scrollViewRef.current && scrollViewHeight > 0) {
       const lineBlock = lineBounds.find(
         (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
       );
       if (lineBlock) {
-        // Scroll to position where the line is above the panel
-        const targetY = Math.max(0, lineBlock.top - 100);
+        // Calculate visible area above the panel
+        const visibleHeight = scrollViewHeight - EDIT_PANEL_HEIGHT;
+        // We want the line to be in the top half of the visible area
+        const targetY = lineBlock.top - (visibleHeight * 0.3);
+        
         setTimeout(() => {
-          scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
-        }, 100);
+          scrollViewRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
+        }, 150);
       }
     }
-  }, [editingChord, lineBounds]);
+  }, [editingChord, lineBounds, scrollViewHeight]);
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
@@ -417,6 +421,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
           const layout = e?.nativeEvent?.layout;
           if (!layout) return;
           setScrollOrigin({ x: layout.x, y: layout.y });
+          setScrollViewHeight(layout.height);
         }}
         onScroll={(e) => setScrollOffset(e.nativeEvent.contentOffset.y)}
         scrollEventThrottle={16}
