@@ -432,36 +432,46 @@ function ChordRow({
 }) {
   return (
     <View style={styles.chordRow}>
-      {chords.map((ch) => (
-        <GestureDetector
-          key={ch.id}
-          gesture={Gesture.LongPress()
-            .minDuration(500)
-            .onStart(() => onDragStart(ch))
-            .onEnd(() => onDragEnd())
-          }
-        >
-          <View style={styles.chordChip}>
-            <TextInput
-              style={[
-                styles.chordInput,
-                {
-                  color: '#007AFF',
-                  fontFamily: EDIT_FONT_FAMILY,
-                  fontSize: EDIT_FONT_SIZE * zoomScale,
-                  fontWeight: '600',
-                },
-              ]}
-              placeholder="Chord"
-              placeholderTextColor={isDark ? '#aaa' : '#666'}
-              value={ch.chord}
-              onChangeText={(t) => onChangeChord(ch.id, t)}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              selectTextOnFocus
-            />
-          </View>
-        </GestureDetector>
+      {chords.map((ch) => {
+        const longPress = Gesture.LongPress()
+          .minDuration(300)
+          .onStart(() => onDragStart(ch));
+
+        const pan = Gesture.Pan()
+          .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
+          .onEnd(() => onDragEnd())
+          .onFinalize(() => onDragEnd());
+
+        const dragGesture = Gesture.Simultaneous(longPress, pan);
+
+        return (
+          <GestureDetector
+            key={ch.id}
+            gesture={dragGesture}
+          >
+            <View style={styles.chordChip}>
+              <TextInput
+                style={[
+                  styles.chordInput,
+                  {
+                    color: '#007AFF',
+                    fontFamily: EDIT_FONT_FAMILY,
+                    fontSize: EDIT_FONT_SIZE * zoomScale,
+                    fontWeight: '600',
+                  },
+                ]}
+                placeholder="Chord"
+                placeholderTextColor={isDark ? '#aaa' : '#666'}
+                value={ch.chord}
+                onChangeText={(t) => onChangeChord(ch.id, t)}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                selectTextOnFocus
+              />
+            </View>
+          </GestureDetector>
+        );
+      })}
       ))}
 
       <Pressable onPress={onAdd} style={styles.addChordButton}>
@@ -583,14 +593,21 @@ function InteractiveChordOverlay({
         {chords.map((ch) => {
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
+          const longPress = Gesture.LongPress()
+            .minDuration(300)
+            .onStart(() => onDragStart(ch));
+
+          const pan = Gesture.Pan()
+            .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
+            .onEnd(() => onDragEnd())
+            .onFinalize(() => onDragEnd());
+
+          const dragGesture = Gesture.Simultaneous(longPress, pan);
+
           return (
             <GestureDetector
               key={ch.id}
-              gesture={Gesture.LongPress()
-                .minDuration(500)
-                .onStart(() => onDragStart(ch))
-                .onEnd(() => onDragEnd())
-              }
+              gesture={dragGesture}
             >
               <View style={[
                 styles.overlayChip,
