@@ -138,11 +138,17 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     const section = song.sections.find(s => s.id === sectionId);
     const line = section?.lines.find(l => l.id === lineId);
     
-    // Find position: right after the last chord, or at position 0 if no chords
-    const lastChordPosition = line?.chords.length 
-      ? Math.max(...line.chords.map(ch => ch.position))
-      : -1;
-    const newPosition = lastChordPosition >= 0 ? lastChordPosition + 1 : 0;
+    // Find position: add spacing after the last chord, or at position 0 if no chords
+    let newPosition = 0;
+    if (line?.chords.length) {
+      // Find the last chord by position
+      const lastChord = line.chords.reduce((latest, ch) => 
+        ch.position > latest.position ? ch : latest
+      );
+      // Add spacing: last position + chord length (estimate 2-3 chars) + 3 char gap
+      const minSpacing = Math.max(3, lastChord.chord.length) + 3;
+      newPosition = Math.min(lastChord.position + minSpacing, line.lyrics.length);
+    }
     
     const newChordId = `chord-${Date.now()}-${Math.random()}`;
     const newChord = {
