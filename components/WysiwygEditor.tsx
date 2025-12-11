@@ -74,7 +74,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       
       // Platform-specific scroll implementation
       if (Platform.OS === 'web') {
-        // Web: Use native DOM APIs
+        // Web: Use offsetTop for simple, reliable positioning
         const lineKey = `${editingChord.sectionId}-${editingChord.lineId}`;
         const lineView = lineRefs.current.get(lineKey);
         
@@ -84,70 +84,106 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
         }
         
         try {
-          // @ts-ignore - Access DOM node
-          const lineElement = lineView._nativeTag ? document.querySelector(`[data-tag="${lineView._nativeTag}"]`) : lineView;
-          // @ts-ignore - Access DOM node
-          const scrollElement = scrollViewRef.current._nativeTag 
-            ? document.querySelector(`[data-tag="${scrollViewRef.current._nativeTag}"]`) 
+          // @ts-ignore - RN Web refs have a way to access the underlying node
+          const lineElement = lineView;
+          // @ts-ignore
+          const scrollElement = scrollViewRef.current?.getScrollableNode 
+            ? scrollViewRef.current.getScrollableNode() 
             : scrollViewRef.current;
           
-          if (!lineElement || !scrollElement) {
-            console.warn('[Web] Could not find DOM elements');
-            
-            // Fallback to lineBounds state
-            const lineBlock = lineBounds.find(
-              (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
-            );
-            
-            if (lineBlock) {
-              const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
-              const targetScrollY = Math.max(0, lineBlock.top - (visibleArea * 0.2));
-              
-              console.log('[Web] Fallback scroll using state:', { targetScrollY, lineTop: lineBlock.top });
-              
-              scrollViewRef.current.scrollTo({ y: targetScrollY, animated: true });
-            }
-            return;
+          // Try multiple ways to get the DOM node
+          let lineDomNode = null;
+          let scrollDomNode = null;
+          
+          // @ts-ignore - try different properties
+          if (lineElement.measure) {
+            // It's an RN component, try to get the node
+            // @ts-ignore
+            lineDomNode = lineElement._touchableNode || lineElement._nativeTag;
+          }
+          // @ts-ignore
+          if (!lineDomNode && lineElement.nodeType) {
+            lineDomNode = lineElement; // It's already a DOM node
           }
           
-          const lineRect = lineElement.getBoundingClientRect();
-          const scrollRect = scrollElement.getBoundingClientRect();
-          const currentScrollTop = scrollElement.scrollTop || 0;
+          // @ts-ignore
+          if (scrollElement && scrollElement.nodeType) {
+            scrollDomNode = scrollElement;
+          // @ts-ignore
+          } else if (scrollElement && scrollElement._scrollViewRef) {
+            // @ts-ignore
+            scrollDomNode = scrollElement._scrollViewRef;
+          }
           
-          // Calculate line position relative to scroll container
-          const lineTopRelativeToScroll = lineRect.top - scrollRect.top + currentScrollTop;
-          
-          console.log('[Web] DOM measurement:', {
-            chordId: editingChord.chordId,
-            lineTopRelativeToScroll,
-            currentScrollTop,
-            lineRect: { top: lineRect.top, height: lineRect.height },
-            scrollRect: { top: scrollRect.top, height: scrollRect.height },
-            scrollViewHeight,
-            panelHeight: EDIT_PANEL_HEIGHT,
+          console.log('[Web] Found elements:', {
+            hasLineNode: !!lineDomNode,
+            hasScrollNode: !!scrollDomNode,
+            lineNodeType: lineDomNode?.nodeType,
+            scrollNodeType: scrollDomNode?.nodeType,
           });
           
-          // Calculate visible area (viewport minus panel)
-          const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
-          const targetScrollY = Math.max(0, lineTopRelativeToScroll - (visibleArea * 0.2));
-          
-          console.log('[Web] Scrolling to:', {
-            targetScrollY,
-            visibleArea,
-            calculation: `${lineTopRelativeToScroll} - (${visibleArea} * 0.2)`,
-          });
-          
-          // Use native scrollTo for better control on web
-          if (scrollElement.scrollTo) {
-            scrollElement.scrollTo({
+          if (lineDomNode && scrollDomNode && lineDomNode.offsetTop !== undefined) {
+            // Use offsetTop - position relative to offsetParent
+            const lineOffsetTop = lineDomNode.offsetTop;
+            const currentScrollTop = scrollDomNode.scrollTop || 0;
+            
+            console.log('[Web] Using offsetTop:', {
+              chordId: editingChord.chordId,
+              lineOffsetTop,
+              currentScrollTop,
+              scrollViewHeight,
+              panelHeight: EDIT_PANEL_HEIGHT,
+            });
+            
+            // Calculate visible area (viewport minus panel)
+            const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+            // Target: line at 20% from top of visible area
+            const targetScrollY = Math.max(0, lineOffsetTop - (visibleArea * 0.2));
+            
+            console.log('[Web] Scrolling to:', {
+              targetScrollY,
+              visibleArea,
+              calculation: `${lineOffsetTop} - (${visibleArea} * 0.2)`,
+            });
+            
+            // Use native scrollTo
+            scrollDomNode.scrollTo({
               top: targetScrollY,
               behavior: 'smooth',
             });
-          } else {
-            scrollViewRef.current.scrollTo({ y: targetScrollY, animated: true });
+            
+            return;
+          }
+          
+          console.warn('[Web] Could not access offsetTop, trying fallback');
+          
+          // Fallback: use lineBounds state
+          const lineBlock = lineBounds.find(
+            (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
+          );
+          
+          if (lineBlock) {
+            const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+            const targetScrollY = Math.max(0, lineBlock.top - (visibleArea * 0.2));
+            
+            console.log('[Web] Fallback using state:', { 
+              targetScrollY, 
+              lineTop: lineBlock.top,
+              visibleArea,
+            });
+            
+            // @ts-ignore
+            if (scrollDomNode?.scrollTo) {
+              scrollDomNode.scrollTo({
+                top: targetScrollY,
+                behavior: 'smooth',
+              });
+            } else {
+              scrollViewRef.current?.scrollTo({ y: targetScrollY, animated: true });
+            }
           }
         } catch (error) {
-          console.error('[Web] DOM measurement error:', error);
+          console.error('[Web] Scroll error:', error);
         }
       } else {
         // Android/iOS: Use measureLayout (more reliable on native)
