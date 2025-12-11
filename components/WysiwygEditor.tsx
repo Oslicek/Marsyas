@@ -40,6 +40,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     position: number;
     maxPosition: number;
   } | null>(null);
+  const [modifiedChords, setModifiedChords] = useState<Set<string>>(new Set());
   const [dragChord, setDragChord] = useState<{
     chord: EditableChord;
     fromSection: string;
@@ -74,6 +75,9 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   }, []);
 
   const updateChordText = useCallback((sectionId: string, lineId: string, chordId: string, text: string) => {
+    // Mark chord as modified
+    setModifiedChords(prev => new Set(prev).add(chordId));
+    
     setSong((prev) => ({
       ...prev,
       sections: prev.sections.map((section) =>
@@ -130,44 +134,56 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   const addChord = useCallback((sectionId: string, lineId: string) => {
     console.log('addChord called:', sectionId, lineId);
-    setSong((prev) => {
-      const section = prev.sections.find(s => s.id === sectionId);
-      const line = section?.lines.find(l => l.id === lineId);
-      console.log('Line before adding chord:', line);
-      
-      const newChord = {
-        id: `chord-${Date.now()}-${Math.random()}`,
-        chord: 'C',
-        position: Math.max(0, (line?.lyrics?.length || 0)),
-      };
-      console.log('Creating new chord:', newChord);
-      
-      const newSong = {
-        ...prev,
-        sections: prev.sections.map((section) =>
-          section.id === sectionId
-            ? {
-                ...section,
-                lines: section.lines.map((line) =>
-                  line.id === lineId
-                    ? {
-                        ...line,
-                        chords: [...line.chords, newChord],
-                      }
-                    : line
-                ),
-              }
-            : section
-        ),
-      };
-      
-      const newSection = newSong.sections.find(s => s.id === sectionId);
-      const newLine = newSection?.lines.find(l => l.id === lineId);
-      console.log('Line after adding chord:', newLine);
-      
-      return newSong;
+    
+    const section = song.sections.find(s => s.id === sectionId);
+    const line = section?.lines.find(l => l.id === lineId);
+    
+    // Find position: right after the last chord, or at position 0 if no chords
+    const lastChordPosition = line?.chords.length 
+      ? Math.max(...line.chords.map(ch => ch.position))
+      : -1;
+    const newPosition = lastChordPosition >= 0 ? lastChordPosition + 1 : 0;
+    
+    const newChordId = `chord-${Date.now()}-${Math.random()}`;
+    const newChord = {
+      id: newChordId,
+      chord: 'C',
+      position: newPosition,
+    };
+    console.log('Creating new chord:', newChord);
+    
+    setSong((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              lines: section.lines.map((line) =>
+                line.id === lineId
+                  ? {
+                      ...line,
+                      chords: [...line.chords, newChord],
+                    }
+                  : line
+              ),
+            }
+          : section
+      ),
+    }));
+    
+    // Mark the new chord as modified (will be shown in green)
+    setModifiedChords(prev => new Set(prev).add(newChordId));
+    
+    // Open edit panel immediately for the new chord
+    setEditingChord({
+      sectionId,
+      lineId,
+      chordId: newChordId,
+      chord: 'C',
+      position: newPosition,
+      maxPosition: line?.lyrics.length || 0,
     });
-  }, []);
+  }, [song]);
 
   const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
     setSong((prev) => ({
@@ -188,6 +204,9 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   }, []);
 
   const setChordPosition = useCallback((sectionId: string, lineId: string, chordId: string, position: number) => {
+    // Mark chord as modified
+    setModifiedChords(prev => new Set(prev).add(chordId));
+    
     setSong((prev) => ({
       ...prev,
       sections: prev.sections.map((section) =>
@@ -412,6 +431,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                           lineId={line.id}
                           isDark={isDark}
                           zoomScale={zoomScale}
+                          modifiedChords={modifiedChords}
                           onChordPress={(ch) => {
                             setEditingChord({
                               sectionId: section.id,
@@ -457,6 +477,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       line={line}
                       sectionId={section.id}
                       lineId={line.id}
+                      modifiedChords={modifiedChords}
                       onChordPress={(ch) => {
                         setEditingChord({
                           sectionId: section.id,
@@ -601,33 +622,37 @@ function ChordRow({
   line: EditableLine;
   sectionId: string;
   lineId: string;
+  modifiedChords: Set<string>;
   onChordPress: (chord: EditableChord) => void;
   isDark: boolean;
   zoomScale: number;
 }) {
   return (
     <View style={styles.chordRow}>
-      {chords.map((ch) => (
-        <Pressable
-          key={ch.id}
-          style={styles.chordChip}
-          onPress={() => onChordPress(ch)}
-        >
-          <Text
-            style={[
-              styles.chordInput,
-              {
-                color: '#007AFF',
-                fontFamily: EDIT_FONT_FAMILY,
-                fontSize: EDIT_FONT_SIZE * zoomScale,
-                fontWeight: '600',
-              },
-            ]}
+      {chords.map((ch) => {
+        const isModified = modifiedChords.has(ch.id);
+        return (
+          <Pressable
+            key={ch.id}
+            style={styles.chordChip}
+            onPress={() => onChordPress(ch)}
           >
-            {ch.chord || 'C'}
-          </Text>
-        </Pressable>
-      ))}
+            <Text
+              style={[
+                styles.chordInput,
+                {
+                  color: isModified ? '#34C759' : '#007AFF',
+                  fontFamily: EDIT_FONT_FAMILY,
+                  fontSize: EDIT_FONT_SIZE * zoomScale,
+                  fontWeight: '600',
+                },
+              ]}
+            >
+              {ch.chord || 'C'}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -709,6 +734,7 @@ function InteractiveChordOverlay({
   lineId,
   isDark,
   zoomScale,
+  modifiedChords,
   onChordPress,
 }: {
   chords: EditableChord[];
@@ -718,6 +744,7 @@ function InteractiveChordOverlay({
   lineId: string;
   isDark: boolean;
   zoomScale: number;
+  modifiedChords: Set<string>;
   onChordPress: (chord: EditableChord) => void;
 }) {
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
@@ -740,6 +767,7 @@ function InteractiveChordOverlay({
         {chords.map((ch) => {
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
+          const isModified = modifiedChords.has(ch.id);
           return (
             <Pressable
               key={ch.id}
@@ -756,7 +784,7 @@ function InteractiveChordOverlay({
             >
               <Text
                 style={{
-                  color: '#007AFF',
+                  color: isModified ? '#34C759' : '#007AFF',
                   paddingVertical: 2 * zoomScale,
                   paddingHorizontal: 2 * zoomScale,
                   textAlign: 'center',
