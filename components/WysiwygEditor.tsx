@@ -55,6 +55,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   const [scrollOffset, setScrollOffset] = useState(0);
   const [scrollOrigin, setScrollOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const lineRefs = useRef<Map<string, View>>(new Map());
 
   const serialized = useMemo(() => fromEditableSong(song), [song]);
   const hasChanges = serialized !== initialChordProRef.current;
@@ -62,50 +63,62 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   // Auto-scroll to edited chord when panel opens
   useEffect(() => {
-    if (!editingChord) {
+    if (!editingChord || !scrollViewRef.current) {
       return;
     }
     
-    // Delay to ensure panel is rendered and layout is complete
+    const lineKey = `${editingChord.sectionId}-${editingChord.lineId}`;
+    const lineView = lineRefs.current.get(lineKey);
+    
+    if (!lineView) {
+      console.warn('Line view not found for:', lineKey);
+      return;
+    }
+    
+    // Use measureLayout to get position relative to ScrollView
     const scrollTimer = setTimeout(() => {
-      if (!scrollViewRef.current || scrollViewHeight === 0 || lineBounds.length === 0) {
-        console.warn('Cannot scroll: missing scroll ref, height, or lineBounds');
-        return;
-      }
-      
-      const lineBlock = lineBounds.find(
-        (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
+      lineView.measureLayout(
+        // @ts-ignore - ScrollView does have a native view handle
+        scrollViewRef.current,
+        (left, top, width, height) => {
+          if (!scrollViewRef.current || scrollViewHeight === 0) {
+            return;
+          }
+          
+          console.log('Measured line position:', {
+            chordId: editingChord.chordId,
+            top,
+            height,
+            scrollViewHeight,
+            panelHeight: EDIT_PANEL_HEIGHT,
+          });
+          
+          // Calculate visible area (viewport minus panel)
+          const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+          
+          // We want the line to be visible in the top portion of the available space
+          // Target: place line at 20% from top of visible area
+          const targetScrollY = Math.max(0, top - (visibleArea * 0.2));
+          
+          console.log('Scrolling to:', {
+            targetScrollY,
+            visibleArea,
+            calculation: `${top} - (${visibleArea} * 0.2)`,
+          });
+          
+          scrollViewRef.current?.scrollTo({
+            y: targetScrollY,
+            animated: true,
+          });
+        },
+        (error) => {
+          console.error('measureLayout failed:', error);
+        }
       );
-      
-      if (!lineBlock) {
-        console.warn('LineBlock not found for chord:', editingChord);
-        return;
-      }
-      
-      console.log('Auto-scroll:', {
-        chord: editingChord.chordId,
-        lineTop: lineBlock.top,
-        lineBottom: lineBlock.bottom,
-        viewportHeight: scrollViewHeight,
-        panelHeight: EDIT_PANEL_HEIGHT,
-      });
-      
-      // Calculate visible area (viewport minus panel at bottom)
-      const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
-      // Position line in upper third of visible area for best visibility
-      const targetY = Math.max(0, lineBlock.top - (visibleArea * 0.25));
-      
-      console.log('Scroll decision:', {
-        visibleArea,
-        targetY,
-        calculation: `${lineBlock.top} - (${visibleArea} * 0.25) = ${targetY}`,
-      });
-      
-      scrollViewRef.current.scrollTo({ y: targetY, animated: true });
-    }, 400); // Longer delay to ensure everything is stable
+    }, 200); // Small delay to ensure panel is rendered
     
     return () => clearTimeout(scrollTimer);
-  }, [editingChord?.chordId]); // Only when chord ID changes
+  }, [editingChord?.chordId, scrollViewHeight]); // Trigger when chord changes or viewport resizes
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
@@ -443,14 +456,15 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
         ref={scrollViewRef}
         style={styles.scroll}
         contentContainerStyle={{
-          paddingBottom: editingChord ? EDIT_PANEL_HEIGHT : 0,
+          paddingBottom: EDIT_PANEL_HEIGHT + 20, // Always add padding to prevent layout thrashing
         }}
         onLayout={(e) => {
           const layout = e?.nativeEvent?.layout;
           if (!layout) return;
           setScrollOrigin({ x: layout.x, y: layout.y });
-          setScrollViewHeight(layout.height);
-          console.log('ScrollView layout:', { height: layout.height, paddingBottom: editingChord ? EDIT_PANEL_HEIGHT : 0 });
+          if (scrollViewHeight !== layout.height) {
+            setScrollViewHeight(layout.height);
+          }
         }}
         onScroll={(e) => setScrollOffset(e.nativeEvent.contentOffset.y)}
         scrollEventThrottle={16}
@@ -465,8 +479,20 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
             {section.lines.map((line) => {
               const hasLyrics = line.lyrics.trim().length > 0;
+              const lineKey = `${section.id}-${line.id}`;
               return (
-                <View key={line.id} style={styles.lineBlock} onLayout={(e) => handleLineLayout(section.id, line.id, e)}>
+                <View 
+                  key={line.id} 
+                  style={styles.lineBlock}
+                  ref={(ref) => {
+                    if (ref) {
+                      lineRefs.current.set(lineKey, ref);
+                    } else {
+                      lineRefs.current.delete(lineKey);
+                    }
+                  }}
+                  onLayout={(e) => handleLineLayout(section.id, line.id, e)}
+                >
                   {hasLyrics ? (
                     <ScrollView
                       horizontal
