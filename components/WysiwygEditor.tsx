@@ -595,10 +595,19 @@ function ChordRow({
           </Text>
         </Pressable>
       ))}
-      ))}
 
-      <Pressable onPress={onAdd} style={styles.addChordButton}>
-        <Text style={styles.addChordText}>+ Chord</Text>
+      <Pressable
+        onPress={onAdd}
+        style={[
+          styles.addChordButton,
+          {
+            paddingHorizontal: 10 * zoomScale,
+            paddingVertical: 6 * zoomScale,
+            borderRadius: 8 * zoomScale,
+          },
+        ]}
+      >
+        <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
       </Pressable>
     </View>
   );
@@ -744,8 +753,18 @@ function InteractiveChordOverlay({
             </Pressable>
           );
         })}
-        <Pressable onPress={onAdd} style={styles.addChordButton}>
-          <Text style={styles.addChordText}>+ Chord</Text>
+        <Pressable
+          onPress={onAdd}
+          style={[
+            styles.addChordButton,
+            {
+              paddingHorizontal: 10 * zoomScale,
+              paddingVertical: 6 * zoomScale,
+              borderRadius: 8 * zoomScale,
+            },
+          ]}
+        >
+          <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
         </Pressable>
       </View>
       {/* Hidden text to measure exact glyph width for monospace alignment */}
@@ -858,9 +877,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
     backgroundColor: '#34C759',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -869,9 +885,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   addChordText: { 
-    color: '#FFFFFF', 
+    color: '#FFFFFF',
     fontWeight: '600',
-    fontSize: 12,
   },
   lineScrollContainer: {
     width: '100%',
