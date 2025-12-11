@@ -433,39 +433,46 @@ function ChordRow({
   return (
     <View style={styles.chordRow}>
       {chords.map((ch) => {
-        const dragGesture = Gesture.Pan()
-          .minDistance(10)
-          .onStart(() => onDragStart(ch))
+        const longPress = Gesture.LongPress()
+          .minDuration(500)
+          .onStart(() => onDragStart(ch));
+
+        const pan = Gesture.Pan()
           .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
           .onEnd(() => onDragEnd())
           .onFinalize(() => onDragEnd());
 
+        const composed = Gesture.Exclusive(
+          Gesture.Simultaneous(longPress, pan),
+          Gesture.Tap()
+        );
+
         return (
-          <View key={ch.id} style={styles.chordChip}>
-            <GestureDetector gesture={dragGesture}>
+          <GestureDetector key={ch.id} gesture={composed}>
+            <View style={styles.chordChip}>
               <View style={{ padding: 4 * zoomScale, marginRight: 4 * zoomScale }}>
                 <Text style={{ fontSize: 10 * zoomScale, color: '#666' }}>⋮⋮</Text>
               </View>
-            </GestureDetector>
-            <TextInput
-              style={[
-                styles.chordInput,
-                {
-                  color: '#007AFF',
-                  fontFamily: EDIT_FONT_FAMILY,
-                  fontSize: EDIT_FONT_SIZE * zoomScale,
-                  fontWeight: '600',
-                },
-              ]}
-              placeholder="Chord"
-              placeholderTextColor={isDark ? '#aaa' : '#666'}
-              value={ch.chord}
-              onChangeText={(t) => onChangeChord(ch.id, t)}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              selectTextOnFocus
-            />
-          </View>
+              <TextInput
+                style={[
+                  styles.chordInput,
+                  {
+                    color: '#007AFF',
+                    fontFamily: EDIT_FONT_FAMILY,
+                    fontSize: EDIT_FONT_SIZE * zoomScale,
+                    fontWeight: '600',
+                  },
+                ]}
+                placeholder="Chord"
+                placeholderTextColor={isDark ? '#aaa' : '#666'}
+                value={ch.chord}
+                onChangeText={(t) => onChangeChord(ch.id, t)}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                selectTextOnFocus
+              />
+            </View>
+          </GestureDetector>
         );
       })}
       ))}
@@ -589,55 +596,61 @@ function InteractiveChordOverlay({
         {chords.map((ch) => {
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
-          const dragGesture = Gesture.Pan()
-            .minDistance(10)
-            .onStart(() => onDragStart(ch))
+          const longPress = Gesture.LongPress()
+            .minDuration(500)
+            .onStart(() => onDragStart(ch));
+
+          const pan = Gesture.Pan()
             .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
             .onEnd(() => onDragEnd())
             .onFinalize(() => onDragEnd());
 
+          const composed = Gesture.Exclusive(
+            Gesture.Simultaneous(longPress, pan),
+            Gesture.Tap()
+          );
+
           return (
-            <View
-              key={ch.id}
-              style={[
-                styles.overlayChip,
-                {
-                  left,
-                  paddingVertical: 2 * zoomScale,
-                  paddingRight: 4 * zoomScale,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }
-              ]}
-            >
-              <GestureDetector gesture={dragGesture}>
+            <GestureDetector key={ch.id} gesture={composed}>
+              <View
+                style={[
+                  styles.overlayChip,
+                  {
+                    left,
+                    paddingVertical: 2 * zoomScale,
+                    paddingRight: 4 * zoomScale,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }
+                ]}
+              >
                 <View style={{ padding: 4 * zoomScale }}>
                   <Text style={{ fontSize: 10 * zoomScale, color: '#666' }}>⋮⋮</Text>
                 </View>
-              </GestureDetector>
-              <TextInput
-                style={[
-                  {
-                    color: '#007AFF',
-                    paddingVertical: 2 * zoomScale,
-                    paddingHorizontal: 4 * zoomScale,
-                    minWidth: 28 * zoomScale,
-                    textAlign: 'left',
-                    fontFamily: EDIT_FONT_FAMILY,
-                    fontSize: EDIT_FONT_SIZE * zoomScale,
-                    borderWidth: 0,
-                    fontWeight: '600',
-                  },
-                ]}
-                placeholder="Chord"
-                placeholderTextColor={isDark ? '#aaa' : '#666'}
-                value={ch.chord}
-                onChangeText={(t) => onChangeChord(ch.id, t)}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                selectTextOnFocus
-              />
-            </View>
+                <TextInput
+                  style={[
+                    {
+                      color: '#007AFF',
+                      paddingVertical: 2 * zoomScale,
+                      paddingHorizontal: 4 * zoomScale,
+                      minWidth: 28 * zoomScale,
+                      textAlign: 'left',
+                      fontFamily: EDIT_FONT_FAMILY,
+                      fontSize: EDIT_FONT_SIZE * zoomScale,
+                      borderWidth: 0,
+                      fontWeight: '600',
+                    },
+                  ]}
+                  placeholder="Chord"
+                  placeholderTextColor={isDark ? '#aaa' : '#666'}
+                  value={ch.chord}
+                  onChangeText={(t) => onChangeChord(ch.id, t)}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  selectTextOnFocus
+                />
+              </View>
+            </GestureDetector>
           );
         })}
         <Pressable onPress={onAdd} style={styles.addChordButton}>
