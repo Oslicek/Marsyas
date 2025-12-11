@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { LayoutChangeEvent, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Slider from '@react-native-community/slider';
 
 import { Text } from './Themed';
 import { EditableChord, EditableLine, EditableSection, EditableSong, fromEditableSong, insertChordsIntoLine, toEditableSong } from '@/services/editable-song';
@@ -31,6 +32,14 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   const [song, setSong] = useState<EditableSong>(initialSong);
   const [zoomScale, setZoomScale] = useState(1.0);
+  const [editingChord, setEditingChord] = useState<{
+    sectionId: string;
+    lineId: string;
+    chordId: string;
+    chord: string;
+    position: number;
+    maxPosition: number;
+  } | null>(null);
   const [dragChord, setDragChord] = useState<{
     chord: EditableChord;
     fromSection: string;
@@ -138,6 +147,49 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                           position: line.lyrics.length,
                         },
                       ],
+                    }
+                  : line
+              ),
+            }
+          : section
+      ),
+    }));
+  }, []);
+
+  const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
+    setSong((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              lines: section.lines.map((line) =>
+                line.id === lineId
+                  ? { ...line, chords: line.chords.filter((c) => c.id !== chordId) }
+                  : line
+              ),
+            }
+          : section
+      ),
+    }));
+  }, []);
+
+  const setChordPosition = useCallback((sectionId: string, lineId: string, chordId: string, position: number) => {
+    setSong((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              lines: section.lines.map((line) =>
+                line.id === lineId
+                  ? {
+                      ...line,
+                      chords: line.chords.map((ch) =>
+                        ch.id === chordId
+                          ? { ...ch, position: clamp(position, 0, line.lyrics.length) }
+                          : ch
+                      ),
                     }
                   : line
               ),
@@ -343,12 +395,20 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                           chords={line.chords}
                           lyrics={line.lyrics}
                           lineWidth={lineWidths[line.id]}
+                          sectionId={section.id}
+                          lineId={line.id}
                           isDark={isDark}
                           zoomScale={zoomScale}
-                          onChangeChord={(chId, text) => updateChordText(section.id, line.id, chId, text)}
-                          onDragStart={(ch) => handleDragStart(ch, section.id, line.id)}
-                          onDragMove={(x, y) => handleDrag(x, y)}
-                          onDragEnd={handleDragEnd}
+                          onChordPress={(ch) => {
+                            setEditingChord({
+                              sectionId: section.id,
+                              lineId: line.id,
+                              chordId: ch.id,
+                              chord: ch.chord,
+                              position: ch.position,
+                              maxPosition: line.lyrics.length,
+                            });
+                          }}
                           onAdd={() => addChord(section.id, line.id)}
                         />
                         <TextInput
@@ -382,12 +442,19 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                   ) : (
                     <ChordRow
                       chords={line.chords}
-                      onChangeChord={(chId, text) =>
-                        updateChordText(section.id, line.id, chId, text)
-                      }
-                      onDragStart={(ch) => handleDragStart(ch, section.id, line.id)}
-                      onDragMove={(x, y) => handleDrag(x, y)}
-                      onDragEnd={handleDragEnd}
+                      line={line}
+                      sectionId={section.id}
+                      lineId={line.id}
+                      onChordPress={(ch) => {
+                        setEditingChord({
+                          sectionId: section.id,
+                          lineId: line.id,
+                          chordId: ch.id,
+                          chord: ch.chord,
+                          position: ch.position,
+                          maxPosition: line.lyrics.length,
+                        });
+                      }}
                       onAdd={() => addChord(section.id, line.id)}
                       isDark={isDark}
                       zoomScale={zoomScale}
@@ -407,25 +474,100 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
           </View>
         </View>
       )}
+
+      {/* Chord Edit Panel */}
+      <Modal
+        visible={editingChord !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingChord(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setEditingChord(null)}>
+          <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
+            <View style={styles.panelHeader}>
+              <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
+              <Pressable onPress={() => setEditingChord(null)}>
+                <Text style={styles.doneButton}>Done</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.panelContent}>
+              <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000' }]}>Chord Name</Text>
+              <TextInput
+                style={[
+                  styles.chordNameInput,
+                  {
+                    color: isDark ? '#fff' : '#000',
+                    backgroundColor: isDark ? '#2c2c2e' : '#f5f5f5',
+                  },
+                ]}
+                value={editingChord?.chord || ''}
+                onChangeText={(text) => {
+                  if (editingChord) {
+                    updateChordText(editingChord.sectionId, editingChord.lineId, editingChord.chordId, text);
+                    setEditingChord({ ...editingChord, chord: text });
+                  }
+                }}
+                autoFocus
+                selectTextOnFocus
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+
+              <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
+                Position: {editingChord?.position || 0} / {editingChord?.maxPosition || 0}
+              </Text>
+              <Slider
+                style={styles.positionSlider}
+                value={editingChord?.position || 0}
+                minimumValue={0}
+                maximumValue={editingChord?.maxPosition || 0}
+                step={1}
+                minimumTrackTintColor="#007AFF"
+                maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
+                thumbTintColor="#007AFF"
+                onValueChange={(value) => {
+                  if (editingChord) {
+                    setChordPosition(editingChord.sectionId, editingChord.lineId, editingChord.chordId, Math.round(value));
+                    setEditingChord({ ...editingChord, position: Math.round(value) });
+                  }
+                }}
+              />
+
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() => {
+                  if (editingChord) {
+                    deleteChord(editingChord.sectionId, editingChord.lineId, editingChord.chordId);
+                    setEditingChord(null);
+                  }
+                }}
+              >
+                <Text style={styles.deleteButtonText}>Delete Chord</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 function ChordRow({
   chords,
-  onChangeChord,
-  onDragStart,
-  onDragMove,
-  onDragEnd,
+  line,
+  sectionId,
+  lineId,
+  onChordPress,
   onAdd,
   isDark,
   zoomScale,
 }: {
   chords: EditableChord[];
-  onChangeChord: (id: string, text: string) => void;
-  onDragStart: (chord: EditableChord) => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: () => void;
+  line: EditableLine;
+  sectionId: string;
+  lineId: string;
+  onChordPress: (chord: EditableChord) => void;
   onAdd: () => void;
   isDark: boolean;
   zoomScale: number;
@@ -433,8 +575,12 @@ function ChordRow({
   return (
     <View style={styles.chordRow}>
       {chords.map((ch) => (
-        <View key={ch.id} style={styles.chordChip}>
-          <TextInput
+        <Pressable
+          key={ch.id}
+          style={styles.chordChip}
+          onPress={() => onChordPress(ch)}
+        >
+          <Text
             style={[
               styles.chordInput,
               {
@@ -444,15 +590,10 @@ function ChordRow({
                 fontWeight: '600',
               },
             ]}
-            placeholder="Chord"
-            placeholderTextColor={isDark ? '#aaa' : '#666'}
-            value={ch.chord}
-            onChangeText={(t) => onChangeChord(ch.id, t)}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            selectTextOnFocus
-          />
-        </View>
+          >
+            {ch.chord || 'C'}
+          </Text>
+        </Pressable>
       ))}
       ))}
 
@@ -536,23 +677,21 @@ function InteractiveChordOverlay({
   chords,
   lyrics,
   lineWidth,
+  sectionId,
+  lineId,
   isDark,
   zoomScale,
-  onChangeChord,
-  onDragStart,
-  onDragMove,
-  onDragEnd,
+  onChordPress,
   onAdd,
 }: {
   chords: EditableChord[];
   lyrics: string;
   lineWidth?: number;
+  sectionId: string;
+  lineId: string;
   isDark: boolean;
   zoomScale: number;
-  onChangeChord: (id: string, text: string) => void;
-  onDragStart: (chord: EditableChord) => void;
-  onDragMove: (x: number, y: number) => void;
-  onDragEnd: () => void;
+  onChordPress: (chord: EditableChord) => void;
   onAdd: () => void;
 }) {
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
@@ -576,7 +715,7 @@ function InteractiveChordOverlay({
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
           return (
-            <View
+            <Pressable
               key={ch.id}
               style={[
                 styles.overlayChip,
@@ -584,36 +723,25 @@ function InteractiveChordOverlay({
                   left,
                   paddingVertical: 2 * zoomScale,
                   paddingHorizontal: 4 * zoomScale,
-                  flexDirection: 'row',
-                  alignItems: 'center',
                   maxWidth: 60 * zoomScale,
                 }
               ]}
+              onPress={() => onChordPress(ch)}
             >
-              <TextInput
-                style={[
-                  {
-                    color: '#007AFF',
-                    paddingVertical: 2 * zoomScale,
-                    paddingHorizontal: 2 * zoomScale,
-                    minWidth: 20 * zoomScale,
-                    maxWidth: 50 * zoomScale,
-                    textAlign: 'center',
-                    fontFamily: EDIT_FONT_FAMILY,
-                    fontSize: EDIT_FONT_SIZE * zoomScale,
-                    borderWidth: 0,
-                    fontWeight: '600',
-                  },
-                ]}
-                placeholder="C"
-                placeholderTextColor={isDark ? '#aaa' : '#666'}
-                value={ch.chord}
-                onChangeText={(t) => onChangeChord(ch.id, t)}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                selectTextOnFocus
-              />
-            </View>
+              <Text
+                style={{
+                  color: '#007AFF',
+                  paddingVertical: 2 * zoomScale,
+                  paddingHorizontal: 2 * zoomScale,
+                  textAlign: 'center',
+                  fontFamily: EDIT_FONT_FAMILY,
+                  fontSize: EDIT_FONT_SIZE * zoomScale,
+                  fontWeight: '600',
+                }}
+              >
+                {ch.chord || 'C'}
+              </Text>
+            </Pressable>
           );
         })}
         <Pressable onPress={onAdd} style={styles.addChordButton}>
@@ -727,13 +855,24 @@ const styles = StyleSheet.create({
   shiftText: { fontSize: 10, fontWeight: '700' },
   positionLabel: { fontSize: 12, fontWeight: '600', minWidth: 24, textAlign: 'center' },
   addChordButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,122,255,0.1)',
-    marginLeft: 'auto',
+    backgroundColor: '#34C759',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  addChordText: { color: '#007AFF', fontWeight: '600' },
+  addChordText: { 
+    color: '#FFFFFF', 
+    fontWeight: '600',
+    fontSize: 12,
+  },
   lineScrollContainer: {
     width: '100%',
     ...(Platform.OS === 'web' ? {
@@ -805,6 +944,75 @@ const styles = StyleSheet.create({
       width: '100%',
       boxSizing: 'border-box',
     } : {}),
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  editPanel: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
+  panelTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  doneButton: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  panelContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  panelLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  chordNameInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    fontFamily: EDIT_FONT_FAMILY,
+    textAlign: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  positionSlider: {
+    width: '100%',
+    height: 40,
+  },
+  deleteButton: {
+    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
