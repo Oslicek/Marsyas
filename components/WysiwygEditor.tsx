@@ -63,12 +63,23 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   // Auto-scroll to edited chord when panel opens
   useEffect(() => {
+    console.log('[Scroll Effect] Triggered:', {
+      hasEditingChord: !!editingChord,
+      chordId: editingChord?.chordId,
+      hasScrollRef: !!scrollViewRef.current,
+      scrollViewHeight,
+    });
+    
     if (!editingChord || !scrollViewRef.current || scrollViewHeight === 0) {
+      console.log('[Scroll Effect] Early return - missing requirements');
       return;
     }
     
     const scrollTimer = setTimeout(() => {
+      console.log('[Scroll Effect] Timer fired after 250ms');
+      
       if (!scrollViewRef.current || scrollViewHeight === 0) {
+        console.log('[Scroll Effect] ScrollView or height no longer available');
         return;
       }
       
@@ -120,37 +131,51 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             hasScrollNode: !!scrollDomNode,
             lineNodeType: lineDomNode?.nodeType,
             scrollNodeType: scrollDomNode?.nodeType,
+            lineOffsetTop: lineDomNode?.offsetTop,
+            scrollTop: scrollDomNode?.scrollTop,
           });
           
           if (lineDomNode && scrollDomNode && lineDomNode.offsetTop !== undefined) {
             // Use offsetTop - position relative to offsetParent
             const lineOffsetTop = lineDomNode.offsetTop;
             const currentScrollTop = scrollDomNode.scrollTop || 0;
+            const scrollHeight = scrollDomNode.scrollHeight || 0;
+            const clientHeight = scrollDomNode.clientHeight || 0;
             
-            console.log('[Web] Using offsetTop:', {
+            // Calculate visible area (viewport minus panel at bottom)
+            const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
+            
+            // We want the line to appear at 20% from the top of the visible area
+            // This means: after scrolling, line should be at position (visibleArea * 0.2) from viewport top
+            // So: targetScrollTop = lineOffsetTop - (visibleArea * 0.2)
+            const targetScrollY = lineOffsetTop - (visibleArea * 0.2);
+            const clampedTargetScrollY = Math.max(0, Math.min(targetScrollY, scrollHeight - clientHeight));
+            
+            console.log('[Web] Scroll calculation:', {
               chordId: editingChord.chordId,
               lineOffsetTop,
               currentScrollTop,
               scrollViewHeight,
               panelHeight: EDIT_PANEL_HEIGHT,
-            });
-            
-            // Calculate visible area (viewport minus panel)
-            const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
-            // Target: line at 20% from top of visible area
-            const targetScrollY = Math.max(0, lineOffsetTop - (visibleArea * 0.2));
-            
-            console.log('[Web] Scrolling to:', {
-              targetScrollY,
               visibleArea,
-              calculation: `${lineOffsetTop} - (${visibleArea} * 0.2)`,
+              targetScrollY,
+              clampedTargetScrollY,
+              scrollHeight,
+              clientHeight,
+              maxScroll: scrollHeight - clientHeight,
+              willScroll: clampedTargetScrollY !== currentScrollTop,
+              scrollDelta: clampedTargetScrollY - currentScrollTop,
+              calculation: `${lineOffsetTop} - (${visibleArea} * 0.2) = ${targetScrollY}`,
             });
             
             // Use native scrollTo
+            console.log('[Web] Calling scrollTo with:', { top: clampedTargetScrollY });
             scrollDomNode.scrollTo({
-              top: targetScrollY,
+              top: clampedTargetScrollY,
               behavior: 'smooth',
             });
+            
+            console.log('[Web] scrollTo called, new scrollTop:', scrollDomNode.scrollTop);
             
             return;
           }
@@ -232,8 +257,11 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       }
     }, 250); // Slightly longer delay for web DOM
     
-    return () => clearTimeout(scrollTimer);
-  }, [editingChord?.chordId, scrollViewHeight]); // Don't include lineBounds to avoid retriggers
+    return () => {
+      console.log('[Scroll Effect] Cleanup');
+      clearTimeout(scrollTimer);
+    };
+  }, [editingChord, scrollViewHeight]); // Use full editingChord object to catch all changes
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
@@ -355,14 +383,16 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     }));
     
     // Open edit panel immediately for the new chord (will show it in green)
-    setEditingChord({
+    const newEditingChord = {
       sectionId,
       lineId,
       chordId: newChordId,
       chord: 'C',
       position: newPosition,
       maxPosition: line?.lyrics.length || 0,
-    });
+    };
+    console.log('Setting editingChord:', newEditingChord);
+    setEditingChord(newEditingChord);
   }, [song]);
 
   const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
