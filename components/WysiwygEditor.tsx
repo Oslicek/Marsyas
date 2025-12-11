@@ -380,6 +380,20 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
               const hasLyrics = line.lyrics.trim().length > 0;
               return (
                 <View key={line.id} style={styles.lineBlock} onLayout={(e) => handleLineLayout(section.id, line.id, e)}>
+                  <Pressable
+                    onPress={() => addChord(section.id, line.id)}
+                    style={[
+                      styles.addChordButton,
+                      {
+                        paddingHorizontal: 10 * zoomScale,
+                        paddingVertical: 6 * zoomScale,
+                        borderRadius: 8 * zoomScale,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
+                  </Pressable>
+
                   {hasLyrics ? (
                     <ScrollView
                       horizontal
@@ -409,7 +423,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                               maxPosition: line.lyrics.length,
                             });
                           }}
-                          onAdd={() => addChord(section.id, line.id)}
                         />
                         <TextInput
                           style={[
@@ -455,7 +468,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                           maxPosition: line.lyrics.length,
                         });
                       }}
-                      onAdd={() => addChord(section.id, line.id)}
                       isDark={isDark}
                       zoomScale={zoomScale}
                     />
@@ -559,7 +571,6 @@ function ChordRow({
   sectionId,
   lineId,
   onChordPress,
-  onAdd,
   isDark,
   zoomScale,
 }: {
@@ -568,7 +579,6 @@ function ChordRow({
   sectionId: string;
   lineId: string;
   onChordPress: (chord: EditableChord) => void;
-  onAdd: () => void;
   isDark: boolean;
   zoomScale: number;
 }) {
@@ -595,20 +605,6 @@ function ChordRow({
           </Text>
         </Pressable>
       ))}
-
-      <Pressable
-        onPress={onAdd}
-        style={[
-          styles.addChordButton,
-          {
-            paddingHorizontal: 10 * zoomScale,
-            paddingVertical: 6 * zoomScale,
-            borderRadius: 8 * zoomScale,
-          },
-        ]}
-      >
-        <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
-      </Pressable>
     </View>
   );
 }
@@ -691,7 +687,6 @@ function InteractiveChordOverlay({
   isDark,
   zoomScale,
   onChordPress,
-  onAdd,
 }: {
   chords: EditableChord[];
   lyrics: string;
@@ -701,7 +696,6 @@ function InteractiveChordOverlay({
   isDark: boolean;
   zoomScale: number;
   onChordPress: (chord: EditableChord) => void;
-  onAdd: () => void;
 }) {
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
   const charCount = Math.max(lyrics.length, 1);
@@ -753,19 +747,6 @@ function InteractiveChordOverlay({
             </Pressable>
           );
         })}
-        <Pressable
-          onPress={onAdd}
-          style={[
-            styles.addChordButton,
-            {
-              paddingHorizontal: 10 * zoomScale,
-              paddingVertical: 6 * zoomScale,
-              borderRadius: 8 * zoomScale,
-            },
-          ]}
-        >
-          <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
-        </Pressable>
       </View>
       {/* Hidden text to measure exact glyph width for monospace alignment */}
       <Text
@@ -838,15 +819,16 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     marginBottom: 6,
   },
-  lineBlock: { marginBottom: 12 },
-  chordRow: {
+  lineBlock: { 
     position: 'relative',
+    marginBottom: 12,
+  },
+  chordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 6,
-    width: '100%',
     paddingRight: 100,
   },
   chordChip: {
@@ -929,7 +911,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     width: '100%',
-    paddingRight: 100,
   },
   overlayChip: {
     position: 'absolute',
