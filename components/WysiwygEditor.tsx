@@ -141,8 +141,11 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       const lastChord = line.chords.reduce((latest, ch) => 
         ch.position > latest.position ? ch : latest
       );
-      // Add spacing: last position + chord length (estimate 2-3 chars) + 3 char gap
-      const minSpacing = Math.max(3, lastChord.chord.length) + 3;
+      // Add spacing: last chord length + generous gap to prevent overlap
+      // Use at least 8 chars spacing (good for short chords like "C" or "F")
+      // Or chord length + 6 for longer chords (e.g., "Gmaj7" → 5+6=11)
+      const baseSpacing = lastChord.chord.length + 6;
+      const minSpacing = Math.max(8, baseSpacing);
       newPosition = Math.min(lastChord.position + minSpacing, line.lyrics.length);
     }
     
