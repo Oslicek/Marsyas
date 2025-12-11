@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Slider from '@react-native-community/slider';
@@ -30,6 +30,7 @@ const EDIT_PANEL_HEIGHT = 280; // Approximate height of the chord edit panel
 export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps) {
   const initialSong = useMemo(() => toEditableSong(parseChordPro(content)), [content]);
   const initialChordProRef = useRef(content);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [song, setSong] = useState<EditableSong>(initialSong);
   const [zoomScale, setZoomScale] = useState(1.0);
@@ -57,6 +58,22 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   const serialized = useMemo(() => fromEditableSong(song), [song]);
   const hasChanges = serialized !== initialChordProRef.current;
   const isDark = useColorScheme() === 'dark';
+
+  // Auto-scroll to edited chord when panel opens
+  useEffect(() => {
+    if (editingChord && scrollViewRef.current) {
+      const lineBlock = lineBounds.find(
+        (lb) => lb.sectionId === editingChord.sectionId && lb.lineId === editingChord.lineId
+      );
+      if (lineBlock) {
+        // Scroll to position where the line is above the panel
+        const targetY = Math.max(0, lineBlock.top - 100);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+        }, 100);
+      }
+    }
+  }, [editingChord, lineBounds]);
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
@@ -391,6 +408,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scroll}
         contentContainerStyle={{
           paddingBottom: editingChord ? EDIT_PANEL_HEIGHT : 0,
