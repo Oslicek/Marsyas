@@ -329,45 +329,56 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
               return (
                 <View key={line.id} style={styles.lineBlock} onLayout={(e) => handleLineLayout(section.id, line.id, e)}>
                   {hasLyrics ? (
-                    <View style={styles.lyricsWrapper}>
-                      <InteractiveChordOverlay
-                        chords={line.chords}
-                        lyrics={line.lyrics}
-                        lineWidth={lineWidths[line.id]}
-                        isDark={isDark}
-                        zoomScale={zoomScale}
-                        onChangeChord={(chId, text) => updateChordText(section.id, line.id, chId, text)}
-                        onDragStart={(ch) => handleDragStart(ch, section.id, line.id)}
-                        onDragMove={(x, y) => handleDrag(x, y)}
-                        onDragEnd={handleDragEnd}
-                        onAdd={() => addChord(section.id, line.id)}
-                      />
-                      <TextInput
-                        style={[
-                          styles.lyricsInput,
-                          {
-                            color: isDark ? '#fff' : '#000',
-                            backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
-                            fontFamily: EDIT_FONT_FAMILY,
-                            fontSize: EDIT_FONT_SIZE * zoomScale,
-                            lineHeight: EDIT_LINE_HEIGHT * zoomScale,
-                          },
-                        ]}
-                        multiline
-                        value={line.lyrics}
-                        onChangeText={(text) => updateLyrics(section.id, line.id, text)}
-                        placeholder="Lyrics..."
-                        placeholderTextColor={isDark ? '#666' : '#999'}
-                        onLayout={(e) => {
-                          const layout = e?.nativeEvent?.layout;
-                          if (!layout) return;
-                          setLineWidths((prev) => ({
-                            ...prev,
-                            [line.id]: layout.width,
-                          }));
-                        }}
-                      />
-                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={true}
+                      style={styles.lineScrollContainer}
+                      contentContainerStyle={styles.lineScrollContent}
+                    >
+                      <View style={[
+                        styles.lyricsWrapper,
+                        { paddingTop: (CHORD_OVERLAY_HEIGHT + CHORD_OVERLAY_PADDING) * zoomScale }
+                      ]}>
+                        <InteractiveChordOverlay
+                          chords={line.chords}
+                          lyrics={line.lyrics}
+                          lineWidth={lineWidths[line.id]}
+                          isDark={isDark}
+                          zoomScale={zoomScale}
+                          onChangeChord={(chId, text) => updateChordText(section.id, line.id, chId, text)}
+                          onDragStart={(ch) => handleDragStart(ch, section.id, line.id)}
+                          onDragMove={(x, y) => handleDrag(x, y)}
+                          onDragEnd={handleDragEnd}
+                          onAdd={() => addChord(section.id, line.id)}
+                        />
+                        <TextInput
+                          style={[
+                            styles.lyricsInput,
+                            {
+                              color: isDark ? '#fff' : '#000',
+                              backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
+                              fontFamily: EDIT_FONT_FAMILY,
+                              fontSize: EDIT_FONT_SIZE * zoomScale,
+                              lineHeight: EDIT_LINE_HEIGHT * zoomScale,
+                              minWidth: '100%',
+                            },
+                          ]}
+                          multiline={false}
+                          value={line.lyrics}
+                          onChangeText={(text) => updateLyrics(section.id, line.id, text)}
+                          placeholder="Lyrics..."
+                          placeholderTextColor={isDark ? '#666' : '#999'}
+                          onLayout={(e) => {
+                            const layout = e?.nativeEvent?.layout;
+                            if (!layout) return;
+                            setLineWidths((prev) => ({
+                              ...prev,
+                              [line.id]: layout.width,
+                            }));
+                          }}
+                        />
+                      </View>
+                    </ScrollView>
                   ) : (
                     <ChordRow
                       chords={line.chords}
@@ -424,11 +435,10 @@ function ChordRow({
       {chords.map((ch) => (
         <GestureDetector
           key={ch.id}
-          gesture={Gesture.Pan()
-            .onBegin(() => onDragStart(ch))
-            .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
+          gesture={Gesture.LongPress()
+            .minDuration(500)
+            .onStart(() => onDragStart(ch))
             .onEnd(() => onDragEnd())
-            .onFinalize(() => onDragEnd())
           }
         >
           <View style={styles.chordChip}>
@@ -436,9 +446,10 @@ function ChordRow({
               style={[
                 styles.chordInput,
                 {
-                  color: isDark ? '#fff' : '#000',
+                  color: '#007AFF',
                   fontFamily: EDIT_FONT_FAMILY,
                   fontSize: EDIT_FONT_SIZE * zoomScale,
+                  fontWeight: '600',
                 },
               ]}
               placeholder="Chord"
@@ -521,7 +532,7 @@ function ChordOverlay({
         const left = clamp(ch.position * charWidth, 0, lineWidth);
         return (
           <View key={ch.id} style={[styles.overlayChip, { left }]}>
-            <Text style={[styles.overlayText, { color: isDark ? '#fff' : '#000' }]}>{ch.chord || '—'}</Text>
+            <Text style={[styles.overlayText, { color: '#007AFF' }]}>{ch.chord || '—'}</Text>
           </View>
         );
       })}
@@ -564,34 +575,43 @@ function InteractiveChordOverlay({
   // Calculate width per character (monospace font)
   const charWidth = charCount > 0 ? textContentWidth / charCount : 0;
 
+  const scaledOverlayHeight = CHORD_OVERLAY_HEIGHT * zoomScale;
+
   return (
-    <View style={styles.chordsOverlay}>
-      <View style={styles.chordOverlayRow}>
+    <View style={[styles.chordsOverlay, { height: scaledOverlayHeight }]}>
+      <View style={[styles.chordOverlayRow, { height: scaledOverlayHeight }]}>
         {chords.map((ch) => {
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
           return (
             <GestureDetector
               key={ch.id}
-              gesture={Gesture.Pan()
-                .onBegin(() => onDragStart(ch))
-                .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
+              gesture={Gesture.LongPress()
+                .minDuration(500)
+                .onStart(() => onDragStart(ch))
                 .onEnd(() => onDragEnd())
-                .onFinalize(() => onDragEnd())
               }
             >
-              <View style={[styles.overlayChip, { left }]}>
+              <View style={[
+                styles.overlayChip,
+                {
+                  left,
+                  paddingVertical: 2 * zoomScale,
+                  paddingRight: 4 * zoomScale,
+                }
+              ]}>
                 <TextInput
                   style={[
                     {
-                      color: isDark ? '#fff' : '#000',
-                      paddingVertical: 2,
+                      color: '#007AFF',
+                      paddingVertical: 2 * zoomScale,
                       paddingHorizontal: 0,
-                      minWidth: 28,
+                      minWidth: 28 * zoomScale,
                       textAlign: 'left',
                       fontFamily: EDIT_FONT_FAMILY,
                       fontSize: EDIT_FONT_SIZE * zoomScale,
                       borderWidth: 0,
+                      fontWeight: '600',
                     },
                   ]}
                   placeholder="Chord"
@@ -722,9 +742,15 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   addChordText: { color: '#007AFF', fontWeight: '600' },
+  lineScrollContainer: {
+    width: '100%',
+  },
+  lineScrollContent: {
+    flexGrow: 1,
+  },
   lyricsWrapper: {
     position: 'relative',
-    paddingTop: CHORD_OVERLAY_HEIGHT + CHORD_OVERLAY_PADDING,
+    flexDirection: 'column',
   },
   chordsOverlay: {
     position: 'absolute',
@@ -742,8 +768,6 @@ const styles = StyleSheet.create({
   },
   overlayChip: {
     position: 'absolute',
-    paddingVertical: 2,
-    paddingRight: 4, // visual padding on right side only, left edge aligns with text
     backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: 4,
   },
