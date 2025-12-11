@@ -433,23 +433,19 @@ function ChordRow({
   return (
     <View style={styles.chordRow}>
       {chords.map((ch) => {
-        const longPress = Gesture.LongPress()
-          .minDuration(300)
-          .onStart(() => onDragStart(ch));
-
-        const pan = Gesture.Pan()
+        const dragGesture = Gesture.Pan()
+          .minDistance(10)
+          .onStart(() => onDragStart(ch))
           .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
           .onEnd(() => onDragEnd())
           .onFinalize(() => onDragEnd());
 
-        const dragGesture = Gesture.Race(longPress, pan);
-
         return (
           <View key={ch.id} style={styles.chordChip}>
             <GestureDetector gesture={dragGesture}>
-              <Pressable style={{ padding: 4 * zoomScale, marginRight: 4 * zoomScale }}>
+              <View style={{ padding: 4 * zoomScale, marginRight: 4 * zoomScale }}>
                 <Text style={{ fontSize: 10 * zoomScale, color: '#666' }}>⋮⋮</Text>
-              </Pressable>
+              </View>
             </GestureDetector>
             <TextInput
               style={[
@@ -593,16 +589,12 @@ function InteractiveChordOverlay({
         {chords.map((ch) => {
           // Position chord at the exact character position in the text
           const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
-          const longPress = Gesture.LongPress()
-            .minDuration(300)
-            .onStart(() => onDragStart(ch));
-
-          const pan = Gesture.Pan()
+          const dragGesture = Gesture.Pan()
+            .minDistance(10)
+            .onStart(() => onDragStart(ch))
             .onUpdate((e) => onDragMove(e.absoluteX, e.absoluteY))
             .onEnd(() => onDragEnd())
             .onFinalize(() => onDragEnd());
-
-          const dragGesture = Gesture.Race(longPress, pan);
 
           return (
             <View
@@ -619,9 +611,9 @@ function InteractiveChordOverlay({
               ]}
             >
               <GestureDetector gesture={dragGesture}>
-                <Pressable style={{ padding: 4 * zoomScale }}>
+                <View style={{ padding: 4 * zoomScale }}>
                   <Text style={{ fontSize: 10 * zoomScale, color: '#666' }}>⋮⋮</Text>
-                </Pressable>
+                </View>
               </GestureDetector>
               <TextInput
                 style={[
