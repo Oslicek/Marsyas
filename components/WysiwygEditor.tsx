@@ -129,31 +129,44 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   }, []);
 
   const addChord = useCallback((sectionId: string, lineId: string) => {
-    setSong((prev) => ({
-      ...prev,
-      sections: prev.sections.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              lines: section.lines.map((line) =>
-                line.id === lineId
-                  ? {
-                      ...line,
-                      chords: [
-                        ...line.chords,
-                        {
-                          id: `chord-${Date.now()}-${Math.random()}`,
-                          chord: 'C',
-                          position: line.lyrics.length,
-                        },
-                      ],
-                    }
-                  : line
-              ),
-            }
-          : section
-      ),
-    }));
+    console.log('addChord called:', sectionId, lineId);
+    setSong((prev) => {
+      const section = prev.sections.find(s => s.id === sectionId);
+      const line = section?.lines.find(l => l.id === lineId);
+      console.log('Line before adding chord:', line);
+      
+      const newChord = {
+        id: `chord-${Date.now()}-${Math.random()}`,
+        chord: 'C',
+        position: Math.max(0, (line?.lyrics?.length || 0)),
+      };
+      console.log('Creating new chord:', newChord);
+      
+      const newSong = {
+        ...prev,
+        sections: prev.sections.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                lines: section.lines.map((line) =>
+                  line.id === lineId
+                    ? {
+                        ...line,
+                        chords: [...line.chords, newChord],
+                      }
+                    : line
+                ),
+              }
+            : section
+        ),
+      };
+      
+      const newSection = newSong.sections.find(s => s.id === sectionId);
+      const newLine = newSection?.lines.find(l => l.id === lineId);
+      console.log('Line after adding chord:', newLine);
+      
+      return newSong;
+    });
   }, []);
 
   const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
