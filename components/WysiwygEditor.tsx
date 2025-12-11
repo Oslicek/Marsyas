@@ -380,20 +380,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
               const hasLyrics = line.lyrics.trim().length > 0;
               return (
                 <View key={line.id} style={styles.lineBlock} onLayout={(e) => handleLineLayout(section.id, line.id, e)}>
-                  <Pressable
-                    onPress={() => addChord(section.id, line.id)}
-                    style={[
-                      styles.addChordButton,
-                      {
-                        paddingHorizontal: 10 * zoomScale,
-                        paddingVertical: 6 * zoomScale,
-                        borderRadius: 8 * zoomScale,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
-                  </Pressable>
-
                   {hasLyrics ? (
                     <ScrollView
                       horizontal
@@ -472,6 +458,20 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       zoomScale={zoomScale}
                     />
                   )}
+
+                  <Pressable
+                    onPress={() => addChord(section.id, line.id)}
+                    style={[
+                      styles.addChordButton,
+                      {
+                        paddingHorizontal: 10 * zoomScale,
+                        paddingVertical: 6 * zoomScale,
+                        borderRadius: 8 * zoomScale,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.addChordText, { fontSize: 12 * zoomScale }]}>+ Chord</Text>
+                  </Pressable>
                 </View>
               );
             })}
@@ -862,13 +862,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 8,
     top: 0,
+    zIndex: 10,
     borderRadius: 8,
     backgroundColor: '#34C759',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   addChordText: { 
     color: '#FFFFFF',
