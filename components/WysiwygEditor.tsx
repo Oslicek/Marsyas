@@ -117,6 +117,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             lineDomNode = lineElement; // It's already a DOM node
           }
           
+          // For ScrollView on web, find the actual scrollable div
           // @ts-ignore
           if (scrollElement && scrollElement.nodeType) {
             scrollDomNode = scrollElement;
@@ -126,6 +127,26 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             scrollDomNode = scrollElement._scrollViewRef;
           }
           
+          // On web, ScrollView creates a wrapper div that actually scrolls
+          // Try to find it by looking for a child with overflow style
+          if (scrollDomNode && scrollDomNode.nodeType === 1) {
+            // Check if this element actually scrolls
+            const hasScroll = scrollDomNode.scrollHeight > scrollDomNode.clientHeight;
+            if (!hasScroll) {
+              // Look for a child that scrolls
+              console.log('[Web] Parent doesnt scroll, looking for scrollable child');
+              const children = scrollDomNode.children || [];
+              for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                if (child.scrollHeight > child.clientHeight) {
+                  console.log('[Web] Found scrollable child at index', i);
+                  scrollDomNode = child;
+                  break;
+                }
+              }
+            }
+          }
+          
           console.log('[Web] Found elements:', {
             hasLineNode: !!lineDomNode,
             hasScrollNode: !!scrollDomNode,
@@ -133,6 +154,9 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             scrollNodeType: scrollDomNode?.nodeType,
             lineOffsetTop: lineDomNode?.offsetTop,
             scrollTop: scrollDomNode?.scrollTop,
+            scrollHeight: scrollDomNode?.scrollHeight,
+            clientHeight: scrollDomNode?.clientHeight,
+            isScrollable: scrollDomNode && (scrollDomNode.scrollHeight > scrollDomNode.clientHeight),
           });
           
           if (lineDomNode && scrollDomNode && lineDomNode.offsetTop !== undefined) {
@@ -187,12 +211,31 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             
             // Use native scrollTo
             console.log('[Web] Calling scrollTo with:', { top: clampedTargetScrollY });
+            const scrollTopBefore = scrollDomNode.scrollTop;
+            
             scrollDomNode.scrollTo({
               top: clampedTargetScrollY,
               behavior: 'smooth',
             });
             
-            console.log('[Web] scrollTo called, new scrollTop:', scrollDomNode.scrollTop);
+            // Check immediately (might not change yet due to smooth behavior)
+            setTimeout(() => {
+              const scrollTopAfter = scrollDomNode.scrollTop;
+              console.log('[Web] Scroll result:', {
+                before: scrollTopBefore,
+                after: scrollTopAfter,
+                target: clampedTargetScrollY,
+                changed: scrollTopAfter !== scrollTopBefore,
+                delta: scrollTopAfter - scrollTopBefore,
+              });
+              
+              // If it didn't change, try without smooth behavior
+              if (scrollTopAfter === scrollTopBefore) {
+                console.warn('[Web] Scroll did not work with smooth behavior, trying instant');
+                scrollDomNode.scrollTop = clampedTargetScrollY;
+                console.log('[Web] After direct assignment, scrollTop:', scrollDomNode.scrollTop);
+              }
+            }, 100);
             
             return;
           }
