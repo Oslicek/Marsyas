@@ -178,8 +178,12 @@ export function insertChordsIntoLine(text: string, chords: EditableChord[]): str
   const sorted = [...chords].sort((a, b) => b.position - a.position);
   let result = text;
 
+  // Allow chords beyond text end; give empty lines extra tail room
+  const hasLyrics = text.length > 0;
+  const maxLen = hasLyrics ? text.length + 20 : 40;
+
   for (const chord of sorted) {
-    const pos = clamp(chord.position, 0, result.length);
+    const pos = clamp(chord.position, 0, Math.max(result.length, maxLen));
     const needsSpace = pos < result.length && result[pos] !== ' ';
     const chordToken = needsSpace ? `[${chord.chord}] ` : `[${chord.chord}]`;
     result = result.slice(0, pos) + chordToken + result.slice(pos);
@@ -191,6 +195,8 @@ export function insertChordsIntoLine(text: string, chords: EditableChord[]): str
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
+
+
 
 
 

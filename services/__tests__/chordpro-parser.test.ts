@@ -180,6 +180,33 @@ describe('ChordPro Parser', () => {
       expect(result.title).toBe('Short Title');
       expect(result.subtitle).toBe('Short Subtitle');
     });
+
+    it('should keep empty lines (not drop them)', () => {
+      const input = `{title: Empty Lines}
+
+[C]Line 1
+
+
+[G]Line 2`;
+      const result = parseChordPro(input);
+
+      expect(result.sections.length).toBe(1);
+      expect(result.sections[0].lines.length).toBe(5); // Line1, empty, empty, Line2
+      expect(result.sections[0].lines[1].lyrics).toBe('');
+      expect(result.sections[0].lines[2].lyrics).toBe('');
+    });
+
+    it('should keep chord-only lines', () => {
+      const input = `[C]
+[G]
+
+[Am]Hello`;
+      const result = parseChordPro(input);
+      expect(result.sections[0].lines.length).toBe(4);
+      expect(result.sections[0].lines[0].lyrics).toBe('');
+      expect(result.sections[0].lines[0].chords).toEqual([{ chord: 'C', position: 0 }]);
+      expect(result.sections[0].lines[3].lyrics).toBe('Hello');
+    });
   });
 });
 

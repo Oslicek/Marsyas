@@ -96,15 +96,15 @@ export function parseChordPro(content: string): ParsedSong {
   let inSection = false;
 
   for (const rawLine of lines) {
-    const line = rawLine.trim();
+    const trimmed = rawLine.trim();
 
     // Skip comments
-    if (line.startsWith('#')) {
+    if (trimmed.startsWith('#')) {
       continue;
     }
 
     // Check for directive
-    const directive = parseDirective(line);
+    const directive = parseDirective(trimmed);
     if (directive) {
       const [name, value] = directive;
       const normalizedName = normalizeDirective(name);
@@ -165,20 +165,14 @@ export function parseChordPro(content: string): ParsedSong {
       continue;
     }
 
-    // Empty line - section break (if not in a marked section)
-    if (line === '') {
-      if (!inSection && currentSection.lines.length > 0) {
-        song.sections.push(currentSection);
-        currentSection = {
-          type: 'none',
-          lines: [],
-        };
-      }
+    // Empty line - keep as an empty line in the current section
+    if (trimmed === '') {
+      currentSection.lines.push({ lyrics: '', chords: [] });
       continue;
     }
 
     // Regular line with lyrics/chords
-    const parsedLine = parseLine(line);
+    const parsedLine = parseLine(rawLine);
     currentSection.lines.push(parsedLine);
   }
 
