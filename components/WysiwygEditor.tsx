@@ -434,7 +434,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
             {section.lines.map((line) => {
               // Show lyrics input when there are lyrics OR when the line is brand new/empty (no chords)
-              const hasLyrics = line.lyrics.trim().length > 0 || line.chords.length === 0;
+              const hasLyrics = line.lyrics.trim().length > 0 || (line.lyrics.trim().length === 0 && line.chords.length === 0);
               return (
                 <View 
                   key={line.id} 
