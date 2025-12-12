@@ -209,6 +209,10 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     }));
     setEditingChord(null);
     setFocusedLine({ sectionId, lineId: newLineId });
+    // Ensure visibility of newly added line
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 50);
   }, []);
 
   const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
