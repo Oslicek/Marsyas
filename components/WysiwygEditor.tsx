@@ -534,7 +534,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                         testID={`add-chord-${line.id}`}
                       >
                         <Text 
-                          style={[styles.addChordText, { fontSize: 12 * zoomScale }]}
+                          style={styles.addChordText}
                           pointerEvents="none"
                         >
                           + Chord
@@ -557,12 +557,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         testID={`add-line-${line.id}`}
                       >
-                        <Text
-                          style={[
-                            styles.addLineText,
-                            { fontSize: 12 * zoomScale, fontFamily: EDIT_FONT_FAMILY },
-                          ]}
-                        >
+                        <Text style={styles.addLineText}>
                           + Line
                         </Text>
                       </Pressable>
@@ -981,6 +976,8 @@ const styles = StyleSheet.create({
   addChordText: { 
     color: '#FFFFFF',
     fontWeight: '600',
+    fontSize: 12,
+    fontFamily: EDIT_FONT_FAMILY,
   },
   addLineButton: {
     position: 'absolute',
@@ -998,6 +995,8 @@ const styles = StyleSheet.create({
   addLineText: {
     color: '#FFFFFF',
     fontWeight: '600',
+    fontSize: 12,
+    fontFamily: EDIT_FONT_FAMILY,
   },
   lineScrollContainer: {
     width: '100%',
