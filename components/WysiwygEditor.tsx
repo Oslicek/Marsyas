@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Slider from '@react-native-community/slider';
 
@@ -274,6 +274,41 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
       ),
     }));
   }, []);
+
+  const deleteLine = useCallback((sectionId: string, lineId: string) => {
+    const section = song.sections.find((s) => s.id === sectionId);
+    const line = section?.lines.find((l) => l.id === lineId);
+    if (!line) return;
+
+    const hasContent = line.lyrics.trim().length > 0 || line.chords.length > 0;
+
+    const doDelete = () => {
+      setSong((prev) => ({
+        ...prev,
+        sections: prev.sections.map((sec) =>
+          sec.id === sectionId
+            ? { ...sec, lines: sec.lines.filter((l) => l.id !== lineId) }
+            : sec
+        ),
+      }));
+      if (editingChord && editingChord.sectionId === sectionId && editingChord.lineId === lineId) {
+        setEditingChord(null);
+      }
+      if (focusedLine && focusedLine.sectionId === sectionId && focusedLine.lineId === lineId) {
+        setFocusedLine(null);
+      }
+    };
+
+    if (!hasContent) {
+      doDelete();
+      return;
+    }
+
+    Alert.alert('Delete line', 'This line has lyrics or chords. Delete it?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: doDelete },
+    ]);
+  }, [editingChord, focusedLine, song]);
 
   const moveChord = useCallback(
     (fromSection: string, fromLine: string, chordId: string, toSection: string, toLine: string, position: number) => {
@@ -565,6 +600,24 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
                       >
                         <Text style={styles.addLineText}>
                           + Line
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => deleteLine(section.id, line.id)}
+                        style={[
+                          styles.deleteLineButton,
+                          {
+                            paddingHorizontal: 10 * zoomScale,
+                            paddingVertical: 6 * zoomScale,
+                            borderRadius: 8 * zoomScale,
+                          },
+                        ]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`delete-line-${line.id}`}
+                      >
+                        <Text style={styles.deleteLineText}>
+                          Delete line
                         </Text>
                       </Pressable>
                     </>
@@ -999,6 +1052,25 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addLineText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12,
+    fontFamily: EDIT_FONT_FAMILY,
+  },
+  deleteLineButton: {
+    position: 'absolute',
+    right: 168, // place left of +Line
+    top: 0,
+    zIndex: 10,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deleteLineText: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 12,
