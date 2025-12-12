@@ -70,8 +70,13 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       scrollViewHeight,
     });
     
-    if (!editingChord || !scrollViewRef.current || scrollViewHeight === 0) {
-      console.log('[Scroll Effect] Early return - missing requirements');
+    if (!editingChord || !editingChord.chordId || !scrollViewRef.current || scrollViewHeight === 0) {
+      console.log('[Scroll Effect] Early return - missing requirements', {
+        hasEditingChord: !!editingChord,
+        hasChordId: !!editingChord?.chordId,
+        hasScrollRef: !!scrollViewRef.current,
+        hasHeight: scrollViewHeight > 0,
+      });
       return;
     }
     
@@ -209,31 +214,41 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
               calculation: `${lineOffsetTop} - (${visibleArea} * 0.2) = ${targetScrollY}`,
             });
             
-            // Use native scrollTo
+            // Use native scrollTo - try both methods
             console.log('[Web] Calling scrollTo with:', { top: clampedTargetScrollY });
             const scrollTopBefore = scrollDomNode.scrollTop;
             
-            scrollDomNode.scrollTo({
-              top: clampedTargetScrollY,
-              behavior: 'smooth',
-            });
+            // Method 1: Try smooth scrollTo first
+            if (scrollDomNode.scrollTo) {
+              scrollDomNode.scrollTo({
+                top: clampedTargetScrollY,
+                behavior: 'smooth',
+              });
+            }
             
-            // Check immediately (might not change yet due to smooth behavior)
+            // Method 2: Immediate fallback with direct assignment
+            // On some browsers/configurations, scrollTo doesn't work, so set directly
             setTimeout(() => {
               const scrollTopAfter = scrollDomNode.scrollTop;
+              const scrolledCorrectly = Math.abs(scrollTopAfter - clampedTargetScrollY) < 5; // Within 5px
+              
               console.log('[Web] Scroll result:', {
                 before: scrollTopBefore,
                 after: scrollTopAfter,
                 target: clampedTargetScrollY,
                 changed: scrollTopAfter !== scrollTopBefore,
                 delta: scrollTopAfter - scrollTopBefore,
+                scrolledCorrectly,
               });
               
-              // If it didn't change, try without smooth behavior
-              if (scrollTopAfter === scrollTopBefore) {
-                console.warn('[Web] Scroll did not work with smooth behavior, trying instant');
+              // If it didn't scroll correctly, force it
+              if (!scrolledCorrectly) {
+                console.warn('[Web] Scroll not at target, forcing with direct assignment');
                 scrollDomNode.scrollTop = clampedTargetScrollY;
-                console.log('[Web] After direct assignment, scrollTop:', scrollDomNode.scrollTop);
+                
+                setTimeout(() => {
+                  console.log('[Web] After forced scroll, scrollTop:', scrollDomNode.scrollTop);
+                }, 50);
               }
             }, 100);
             
@@ -321,7 +336,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       console.log('[Scroll Effect] Cleanup');
       clearTimeout(scrollTimer);
     };
-  }, [editingChord, scrollViewHeight]); // Use full editingChord object to catch all changes
+  }, [editingChord?.chordId, scrollViewHeight]); // Only trigger when chord ID changes (not on text edits)
 
   const updateLyrics = useCallback((sectionId: string, lineId: string, text: string) => {
     setSong((prev) => ({
