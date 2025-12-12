@@ -196,9 +196,9 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             const lineBottomInViewport = lineTopInViewport + 80; // Line + chord overlay height
             
             // Define margins for comfortable visibility
-            const TOP_MARGIN = 50; // Minimum space from top
-            const BOTTOM_MARGIN = 100; // Space to keep above panel (accounting for +Chord button)
-            const CLOSE_THRESHOLD = 150; // If within 150px of being visible, use minimal scroll
+            const TOP_MARGIN = 80; // Minimum space from top
+            const BOTTOM_MARGIN = 150; // Space to keep above panel (accounting for +Chord button and some breathing room)
+            const CLOSE_THRESHOLD = 300; // If within 300px of being visible, use minimal scroll
             
             // Check if line is comfortably visible
             const isLineVisible = 
@@ -235,20 +235,20 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                 targetScrollY = currentScrollTop - (distanceAboveViewport + TOP_MARGIN);
                 console.log('[Web] Line close above, minimal scroll:', targetScrollY);
               } else {
-                // Far above - scroll to comfortable position (40% from top)
-                targetScrollY = lineOffsetTop - (visibleArea * 0.4);
-                console.log('[Web] Line far above, scroll to 40% from top');
+                // Far above - scroll to comfortable position (50% from top - more centered)
+                targetScrollY = lineOffsetTop - (visibleArea * 0.5);
+                console.log('[Web] Line far above, scroll to 50% from top');
               }
             } else {
               // Line is too low (hidden by panel or below)
               if (distanceBelowVisible <= CLOSE_THRESHOLD) {
                 // Close to visible - minimal scroll to just show it with margin
-                targetScrollY = currentScrollTop + distanceBelowVisible + BOTTOM_MARGIN;
+                targetScrollY = currentScrollTop + distanceBelowVisible;
                 console.log('[Web] Line close below, minimal scroll:', targetScrollY);
               } else {
-                // Far below - scroll to comfortable position (40% from top)
-                targetScrollY = lineOffsetTop - (visibleArea * 0.4);
-                console.log('[Web] Line far below, scroll to 40% from top');
+                // Far below - scroll to comfortable position (50% from top - more centered)
+                targetScrollY = lineOffsetTop - (visibleArea * 0.5);
+                console.log('[Web] Line far below, scroll to 50% from top');
               }
             }
             
