@@ -455,7 +455,16 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>WYSIWYG Editor {hasChanges ? '•' : ''}</Text>
-        
+        <Pressable
+          onPress={handleSave}
+          disabled={!hasChanges}
+          style={[styles.toolbarButton, !hasChanges && styles.disabledButton]}
+        >
+          <Text style={[styles.save, !hasChanges && styles.disabledText]}>Save</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.controlsRow}>
         <Pressable onPress={handleCopyChords} style={styles.toolbarButton}>
           <Text style={styles.toolText}>Copy Chords</Text>
         </Pressable>
@@ -492,14 +501,6 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
             <Text style={styles.zoomButtonText}>A+</Text>
           </Pressable>
         </View>
-
-        <Pressable
-          onPress={handleSave}
-          disabled={!hasChanges}
-          style={[styles.toolbarButton, !hasChanges && styles.disabledButton]}
-        >
-          <Text style={[styles.save, !hasChanges && styles.disabledText]}>Save</Text>
-        </Pressable>
       </View>
 
       <ScrollView
@@ -974,6 +975,16 @@ const styles = StyleSheet.create({
   toolText: { fontSize: 14, color: '#007AFF', fontWeight: '600' },
   disabledButton: { opacity: 0.5 },
   disabledText: { color: '#999' },
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
   zoomControls: {
     flexDirection: 'row',
     alignItems: 'center',
