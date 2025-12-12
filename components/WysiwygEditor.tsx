@@ -53,6 +53,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   const [lineWidths, setLineWidths] = useState<{ lineId: string; width: number }>({});
   const [scrollOffset, setScrollOffset] = useState(0);
   const [scrollOrigin, setScrollOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [focusedLine, setFocusedLine] = useState<{ sectionId: string; lineId: string } | null>(null);
 
   const serialized = useMemo(() => fromEditableSong(song), [song]);
   const hasChanges = serialized !== initialChordProRef.current;
@@ -191,6 +192,24 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     console.log('Setting editingChord:', newEditingChord);
     setEditingChord(newEditingChord);
   }, [song]);
+
+  const addLineBelow = useCallback((sectionId: string, lineId: string) => {
+    const newLineId = `line-${Date.now()}-${Math.random()}`;
+    setSong((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+        const idx = section.lines.findIndex((l) => l.id === lineId);
+        if (idx === -1) return section;
+        const newLine = { id: newLineId, lyrics: '', chords: [] as EditableChord[] };
+        const newLines = [...section.lines];
+        newLines.splice(idx + 1, 0, newLine);
+        return { ...section, lines: newLines };
+      }),
+    }));
+    setEditingChord(null);
+    setFocusedLine({ sectionId, lineId: newLineId });
+  }, []);
 
   const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
     setSong((prev) => ({
@@ -477,6 +496,8 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                               [line.id]: layout.width,
                             }));
                           }}
+                      onFocus={() => setFocusedLine({ sectionId: section.id, lineId: line.id })}
+                      onBlur={() => setFocusedLine((prev) => (prev?.lineId === line.id ? null : prev))}
                         />
                       </View>
                     </ScrollView>
@@ -503,29 +524,49 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                     />
                   )}
 
-                  <Pressable
-                    onPress={() => {
-                      console.log('Button pressed:', section.id, line.id);
-                      addChord(section.id, line.id);
-                    }}
-                    style={[
-                      styles.addChordButton,
-                      {
-                        paddingHorizontal: 10 * zoomScale,
-                        paddingVertical: 6 * zoomScale,
-                        borderRadius: 8 * zoomScale,
-                      },
-                    ]}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    testID={`add-chord-${line.id}`}
-                  >
-                    <Text 
-                      style={[styles.addChordText, { fontSize: 12 * zoomScale }]}
-                      pointerEvents="none"
-                    >
-                      + Chord
-                    </Text>
-                  </Pressable>
+                  {focusedLine?.sectionId === section.id && focusedLine?.lineId === line.id && (
+                    <>
+                      <Pressable
+                        onPress={() => {
+                          console.log('Button pressed:', section.id, line.id);
+                          addChord(section.id, line.id);
+                        }}
+                        style={[
+                          styles.addChordButton,
+                          {
+                            paddingHorizontal: 10 * zoomScale,
+                            paddingVertical: 6 * zoomScale,
+                            borderRadius: 8 * zoomScale,
+                          },
+                        ]}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        testID={`add-chord-${line.id}`}
+                      >
+                        <Text 
+                          style={[styles.addChordText, { fontSize: 12 * zoomScale }]}
+                          pointerEvents="none"
+                        >
+                          + Chord
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => addLineBelow(section.id, line.id)}
+                        style={[
+                          styles.addLineButton,
+                          {
+                            paddingHorizontal: 8 * zoomScale,
+                            paddingVertical: 4 * zoomScale,
+                            borderRadius: 6 * zoomScale,
+                          },
+                        ]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`add-line-${line.id}`}
+                      >
+                        <Text style={[styles.addLineText, { fontSize: 12 * zoomScale }]}>+ Line</Text>
+                      </Pressable>
+                    </>
+                  )}
 
                   {editingChord && editingChord.sectionId === section.id && editingChord.lineId === line.id && (
                     (() => {
@@ -928,6 +969,23 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addChordText: { 
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  addLineButton: {
+    position: 'absolute',
+    right: 8,
+    bottom: -30,
+    zIndex: 9,
+    borderRadius: 6,
+    backgroundColor: '#555',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  addLineText: {
     color: '#FFFFFF',
     fontWeight: '600',
   },
