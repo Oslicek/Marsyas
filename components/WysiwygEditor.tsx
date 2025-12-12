@@ -193,12 +193,23 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             
             // Check current position of line relative to viewport
             const lineTopInViewport = lineOffsetTop - currentScrollTop;
-            const lineBottomInViewport = lineTopInViewport + 50; // Assume ~50px line height
+            const lineBottomInViewport = lineTopInViewport + 80; // Line + chord overlay height
             
-            // Check if line is currently visible in the available space (above the panel)
-            const isLineVisible = lineTopInViewport >= 0 && lineBottomInViewport <= visibleArea;
-            const isLineTooLow = lineBottomInViewport > visibleArea; // Hidden by panel or below
-            const isLineTooHigh = lineTopInViewport < 0; // Above viewport
+            // Define margins for comfortable visibility
+            const TOP_MARGIN = 50; // Minimum space from top
+            const BOTTOM_MARGIN = 100; // Space to keep above panel (accounting for +Chord button)
+            const CLOSE_THRESHOLD = 150; // If within 150px of being visible, use minimal scroll
+            
+            // Check if line is comfortably visible
+            const isLineVisible = 
+              lineTopInViewport >= TOP_MARGIN && 
+              lineBottomInViewport <= (visibleArea - BOTTOM_MARGIN);
+            
+            const distanceAboveViewport = -lineTopInViewport; // Positive if above
+            const distanceBelowVisible = lineBottomInViewport - (visibleArea - BOTTOM_MARGIN); // Positive if below
+            
+            const isLineTooHigh = lineTopInViewport < TOP_MARGIN;
+            const isLineTooLow = lineBottomInViewport > (visibleArea - BOTTOM_MARGIN);
             
             console.log('[Web] Visibility check:', {
               lineTopInViewport,
@@ -207,20 +218,38 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
               isLineVisible,
               isLineTooLow,
               isLineTooHigh,
+              distanceAboveViewport: isLineTooHigh ? distanceAboveViewport : 0,
+              distanceBelowVisible: isLineTooLow ? distanceBelowVisible : 0,
             });
             
             let targetScrollY;
             
             if (isLineVisible) {
-              // Line is already visible - don't scroll
+              // Line is already comfortably visible - don't scroll
               console.log('[Web] Line already visible, no scroll needed');
               targetScrollY = currentScrollTop;
             } else if (isLineTooHigh) {
-              // Line is above viewport - scroll up to show it at 30% from top
-              targetScrollY = lineOffsetTop - (visibleArea * 0.3);
+              // Line is above viewport
+              if (distanceAboveViewport <= CLOSE_THRESHOLD) {
+                // Close to visible - minimal scroll to just show it with margin
+                targetScrollY = currentScrollTop - (distanceAboveViewport + TOP_MARGIN);
+                console.log('[Web] Line close above, minimal scroll:', targetScrollY);
+              } else {
+                // Far above - scroll to comfortable position (40% from top)
+                targetScrollY = lineOffsetTop - (visibleArea * 0.4);
+                console.log('[Web] Line far above, scroll to 40% from top');
+              }
             } else {
-              // Line is too low (hidden by panel or below) - scroll down to show it at 30% from top
-              targetScrollY = lineOffsetTop - (visibleArea * 0.3);
+              // Line is too low (hidden by panel or below)
+              if (distanceBelowVisible <= CLOSE_THRESHOLD) {
+                // Close to visible - minimal scroll to just show it with margin
+                targetScrollY = currentScrollTop + distanceBelowVisible + BOTTOM_MARGIN;
+                console.log('[Web] Line close below, minimal scroll:', targetScrollY);
+              } else {
+                // Far below - scroll to comfortable position (40% from top)
+                targetScrollY = lineOffsetTop - (visibleArea * 0.4);
+                console.log('[Web] Line far below, scroll to 40% from top');
+              }
             }
             
             const clampedTargetScrollY = Math.max(0, Math.min(targetScrollY, scrollHeight - clientHeight));
