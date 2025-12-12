@@ -549,15 +549,22 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                         style={[
                           styles.addLineButton,
                           {
-                            paddingHorizontal: 8 * zoomScale,
-                            paddingVertical: 4 * zoomScale,
-                            borderRadius: 6 * zoomScale,
+                            paddingHorizontal: 10 * zoomScale,
+                            paddingVertical: 6 * zoomScale,
+                            borderRadius: 8 * zoomScale,
                           },
                         ]}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         testID={`add-line-${line.id}`}
                       >
-                        <Text style={[styles.addLineText, { fontSize: 12 * zoomScale }]}>+ Line</Text>
+                        <Text
+                          style={[
+                            styles.addLineText,
+                            { fontSize: 12 * zoomScale, fontFamily: EDIT_FONT_FAMILY },
+                          ]}
+                        >
+                          + Line
+                        </Text>
                       </Pressable>
                     </>
                   )}
