@@ -4,6 +4,7 @@ import { StyleSheet, TextInput, ScrollView, Pressable } from 'react-native';
 import { Text, View } from './Themed';
 import { useColorScheme } from './useColorScheme';
 import { copyChordsToSections } from '@/services/chord-copy';
+import { transposeChordProContent } from '@/services/chord-transpose';
 
 interface SongEditorProps {
   content: string;
@@ -25,6 +26,7 @@ export function SongEditor({ content, onSave, onCancel, onContentChange }: SongE
   const [editedContent, setEditedContent] = useState(content);
   const [hasChanges, setHasChanges] = useState(false);
   const [zoomScale, setZoomScale] = useState(1.0);
+  const [editTranspose, setEditTranspose] = useState(0);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -45,6 +47,13 @@ export function SongEditor({ content, onSave, onCancel, onContentChange }: SongE
   const handleTextChange = useCallback((text: string) => {
     setEditedContent(text);
   }, []);
+
+  const handleTranspose = useCallback((delta: number) => {
+    if (delta === 0) return;
+    const newContent = transposeChordProContent(editedContent, delta);
+    setEditedContent(newContent);
+    setEditTranspose((prev) => prev + delta);
+  }, [editedContent]);
 
   const handleCopyChords = useCallback(() => {
     const newContent = copyChordsToSections(editedContent);
@@ -100,6 +109,20 @@ export function SongEditor({ content, onSave, onCancel, onContentChange }: SongE
         >
           <Text style={styles.toolButtonText}>📋 Copy Chords</Text>
         </Pressable>
+
+        <View style={styles.transposeControls}>
+          <Pressable onPress={() => handleTranspose(-1)} style={styles.transposeButton}>
+            <Text style={styles.transposeButtonText}>−</Text>
+          </Pressable>
+          <Pressable style={styles.transposeValue}>
+            <Text style={styles.transposeValueText}>
+              {editTranspose === 0 ? '0' : editTranspose > 0 ? `+${editTranspose}` : editTranspose}
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => handleTranspose(1)} style={styles.transposeButton}>
+            <Text style={styles.transposeButtonText}>+</Text>
+          </Pressable>
+        </View>
 
         {/* Zoom controls */}
         <View style={styles.zoomControls}>
@@ -204,6 +227,38 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
     gap: 8,
+  },
+  transposeControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  transposeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(150,150,150,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transposeButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007AFF',
+  },
+  transposeValue: {
+    minWidth: 44,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  transposeValueText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   zoomControls: {
     flexDirection: 'row',

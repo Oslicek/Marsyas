@@ -2,7 +2,11 @@
  * Chord transposition service
  * Handles parsing and transposing chord names
  */
-
+import { EditableSong, fromEditableSong, toEditableSong } from './editable-song';
+import { parseChordPro } from './chordpro-parser';
+import { EditableSong } from './editable-song';
+import { fromEditableSong, toEditableSong } from './editable-song';
+import { parseChordPro } from './chordpro-parser';
 // All note names in order (using sharps)
 const NOTES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 // All note names in order (using flats)
@@ -126,6 +130,36 @@ export function transposeChord(chord: string, semitones: number): string {
 
   return result;
 }
+
+/**
+ * Transpose all chords (and key) in an editable song
+ */
+export function transposeEditableSong(song: EditableSong, semitones: number): EditableSong {
+  if (semitones === 0) return song;
+  return {
+    ...song,
+    key: song.key ? transposeChord(song.key, semitones) : song.key,
+    sections: song.sections.map((section) => ({
+      ...section,
+      lines: section.lines.map((line) => ({
+        ...line,
+        chords: line.chords.map((ch) => ({ ...ch, chord: transposeChord(ch.chord, semitones) })),
+      })),
+    })),
+  };
+}
+
+/**
+ * Transpose a ChordPro string and return new ChordPro content
+ */
+export function transposeChordProContent(content: string, semitones: number): string {
+  if (semitones === 0) return content;
+  const parsed = toEditableSong(parseChordPro(content));
+  const transposed = transposeEditableSong(parsed, semitones);
+  return fromEditableSong(transposed);
+}
+
+
 
 
 

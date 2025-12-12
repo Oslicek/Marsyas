@@ -7,6 +7,7 @@ import { Text } from './Themed';
 import { EditableChord, EditableLine, EditableSection, EditableSong, fromEditableSong, insertChordsIntoLine, toEditableSong } from '@/services/editable-song';
 import { copyChordsToSections } from '@/services/chord-copy';
 import { parseChordPro } from '@/services/chordpro-parser';
+import { transposeEditableSong } from '@/services/chord-transpose';
 import { useColorScheme } from './useColorScheme';
 
 const EDIT_FONT_FAMILY = 'SpaceMono';
@@ -63,6 +64,7 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
   const [scrollOffset, setScrollOffset] = useState(0);
   const [scrollOrigin, setScrollOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [focusedLine, setFocusedLine] = useState<{ sectionId: string; lineId: string } | null>(null);
+  const [editTranspose, setEditTranspose] = useState(0);
 
   const serialized = useMemo(() => fromEditableSong(song), [song]);
   useEffect(() => {
@@ -374,6 +376,12 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
     setSong(parsed);
   }, [serialized]);
 
+  const handleTransposeEdit = useCallback((delta: number) => {
+    if (delta === 0) return;
+    setSong((prev) => transposeEditableSong(prev, delta));
+    setEditTranspose((prev) => prev + delta);
+  }, []);
+
   const handleZoomIn = useCallback(() => {
     setZoomScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
   }, []);
@@ -451,6 +459,20 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
         <Pressable onPress={handleCopyChords} style={styles.toolbarButton}>
           <Text style={styles.toolText}>Copy Chords</Text>
         </Pressable>
+
+        <View style={styles.transposeControls}>
+          <Pressable onPress={() => handleTransposeEdit(-1)} style={styles.transposeButton}>
+            <Text style={styles.transposeButtonText}>−</Text>
+          </Pressable>
+          <Pressable style={styles.transposeValue}>
+            <Text style={styles.transposeValueText}>
+              {editTranspose === 0 ? '0' : editTranspose > 0 ? `+${editTranspose}` : editTranspose}
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => handleTransposeEdit(1)} style={styles.transposeButton}>
+            <Text style={styles.transposeButtonText}>+</Text>
+          </Pressable>
+        </View>
 
         {/* Zoom controls */}
         <View style={styles.zoomControls}>
@@ -957,6 +979,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
+  transposeControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: 8,
+  },
+  transposeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(150,150,150,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transposeButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  transposeValue: {
+    minWidth: 44,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(150,150,150,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  transposeValueText: { fontSize: 12, fontWeight: '600' },
   zoomButton: {
     width: 32,
     height: 32,
