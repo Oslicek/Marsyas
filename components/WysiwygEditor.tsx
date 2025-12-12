@@ -15,6 +15,7 @@ const LYRICS_PADDING = 10;
 const LYRICS_BORDER = 1;
 const CHORD_OVERLAY_HEIGHT = EDIT_FONT_SIZE + 12;
 const CHORD_OVERLAY_PADDING = 6;
+const EXTRA_CHORD_TAIL_CHARS = 20; // allow chords after end of line
 
 interface WysiwygEditorProps {
   content: string;
@@ -116,7 +117,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                               position: clamp(
                                 ch.position + delta,
                                 0,
-                                Math.max(line.lyrics.length, 0)
+                                Math.max(line.lyrics.length + EXTRA_CHORD_TAIL_CHARS, 0)
                               ),
                             }
                           : ch
@@ -148,7 +149,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
       // Or chord length + 6 for longer chords (e.g., "Gmaj7" → 5+6=11)
       const baseSpacing = lastChord.chord.length + 6;
       const minSpacing = Math.max(8, baseSpacing);
-      newPosition = Math.min(lastChord.position + minSpacing, line.lyrics.length);
+      newPosition = Math.min(lastChord.position + minSpacing, line.lyrics.length + EXTRA_CHORD_TAIL_CHARS);
     }
     
     const newChordId = `chord-${Date.now()}-${Math.random()}`;
@@ -222,7 +223,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       ...line,
                       chords: line.chords.map((ch) =>
                         ch.id === chordId
-                          ? { ...ch, position: clamp(position, 0, line.lyrics.length) }
+                          ? { ...ch, position: clamp(position, 0, line.lyrics.length + EXTRA_CHORD_TAIL_CHARS) }
                           : ch
                       ),
                     }
@@ -270,7 +271,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                 line.id === toLine
                   ? {
                       ...line,
-                      chords: [...line.chords, { ...chordData, position: clamp(position, 0, Math.max(line.lyrics.length, 0)) }].sort(
+                      chords: [...line.chords, { ...chordData, position: clamp(position, 0, Math.max(line.lyrics.length + EXTRA_CHORD_TAIL_CHARS, 0)) }].sort(
                         (a, b) => a.position - b.position
                       ),
                     }
@@ -493,7 +494,8 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                           chordId: ch.id,
                           chord: ch.chord,
                           position: ch.position,
-                          maxPosition: line.lyrics.length,
+                          maxPosition: line.lyrics.length + EXTRA_CHORD_TAIL_CHARS,
+                          maxPosition: line.lyrics.length + EXTRA_CHORD_TAIL_CHARS,
                         });
                       }}
                       isDark={isDark}
@@ -530,7 +532,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       const targetChord = line.chords.find((c) => c.id === editingChord.chordId);
                       const chordText = targetChord?.chord ?? editingChord.chord;
                       const chordPosition = targetChord?.position ?? editingChord.position ?? 0;
-                      const maxPosition = line.lyrics.length;
+                      const maxPosition = line.lyrics.length + EXTRA_CHORD_TAIL_CHARS;
                       return (
                         <View style={[styles.inlinePanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
                           <View style={styles.panelHeader}>
@@ -564,20 +566,20 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                             <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
                               Position: {chordPosition} / {maxPosition}
                             </Text>
-                            <Slider
-                              style={styles.positionSlider}
-                              value={chordPosition}
-                              minimumValue={0}
-                              maximumValue={maxPosition}
-                              step={1}
-                              minimumTrackTintColor="#007AFF"
-                              maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
-                              thumbTintColor="#007AFF"
-                              onValueChange={(value) => {
-                                setChordPosition(section.id, line.id, editingChord.chordId, Math.round(value));
-                                setEditingChord({ ...editingChord, position: Math.round(value) });
-                              }}
-                            />
+            <Slider
+              style={styles.positionSlider}
+              value={chordPosition}
+              minimumValue={0}
+              maximumValue={maxPosition}
+              step={1}
+              minimumTrackTintColor="#007AFF"
+              maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
+              thumbTintColor="#007AFF"
+              onValueChange={(value) => {
+                setChordPosition(section.id, line.id, editingChord.chordId, Math.round(value));
+                setEditingChord({ ...editingChord, position: Math.round(value) });
+              }}
+            />
 
                             <Pressable
                               style={styles.deleteButton}
@@ -695,9 +697,8 @@ function computePositionInLine(
   bounds: { left: number; width: number },
   lyrics: string
 ): number {
-  const relX = clamp(x - bounds.left, 0, bounds.width);
-  const charCount = Math.max(lyrics.length, 1);
-  const charWidth = bounds.width / charCount;
+  const relX = Math.max(0, x - bounds.left); // allow beyond current width
+  const charWidth = bounds.width / Math.max(lyrics.length, 1);
   return Math.round(relX / charWidth);
 }
 
@@ -713,13 +714,14 @@ function ChordOverlay({
   isDark: boolean;
 }) {
   if (!lineWidth || chords.length === 0) return null;
-  const charCount = Math.max(lyrics.length, 1);
-  const charWidth = lineWidth / charCount;
+  const baseCharCount = Math.max(lyrics.length, 1);
+  const baseCharWidth = lineWidth / baseCharCount;
+  const charCount = Math.max(lyrics.length + EXTRA_CHORD_TAIL_CHARS, 1);
 
   return (
     <View style={styles.chordOverlayRow}>
       {chords.map((ch) => {
-        const left = clamp(ch.position * charWidth, 0, lineWidth);
+        const left = clamp(ch.position * baseCharWidth, 0, lineWidth + baseCharWidth * EXTRA_CHORD_TAIL_CHARS);
         return (
           <View key={ch.id} style={[styles.overlayChip, { left }]}>
             <Text style={[styles.overlayText, { color: '#007AFF' }]}>{ch.chord || '—'}</Text>
@@ -752,25 +754,24 @@ function InteractiveChordOverlay({
   onChordPress: (chord: EditableChord) => void;
 }) {
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
-  const charCount = Math.max(lyrics.length, 1);
   
   // Text in TextInput starts at border + padding from the left edge
   const textStartOffset = LYRICS_PADDING + LYRICS_BORDER;
   
   // Use measured width of the actual text content (from hidden Text component)
-  const textContentWidth = measuredWidth ?? (lineWidth ? Math.max(lineWidth - textStartOffset * 2, 1) : 0);
-  
-  // Calculate width per character (monospace font)
-  const charWidth = charCount > 0 ? textContentWidth / charCount : 0;
+  const baseContentWidth = measuredWidth ?? (lineWidth ? Math.max(lineWidth - textStartOffset * 2, 1) : 0);
+  const baseCharCount = Math.max(lyrics.length, 1);
+  const baseCharWidth = baseContentWidth / baseCharCount;
+  const totalContentWidth = baseContentWidth + baseCharWidth * EXTRA_CHORD_TAIL_CHARS;
 
   const scaledOverlayHeight = CHORD_OVERLAY_HEIGHT * zoomScale;
 
   return (
     <View style={[styles.chordsOverlay, { height: scaledOverlayHeight }]}>
-      <View style={[styles.chordOverlayRow, { height: scaledOverlayHeight }]}>
+      <View style={[styles.chordOverlayRow, { height: scaledOverlayHeight, minWidth: totalContentWidth }]}>
         {chords.map((ch) => {
-          // Position chord at the exact character position in the text
-          const left = textContentWidth > 0 ? textStartOffset + (ch.position * charWidth) : 0;
+          // Position chord at the exact character position in the text (allow tail)
+          const left = totalContentWidth > 0 ? textStartOffset + (ch.position * baseCharWidth) : 0;
           const isBeingEdited = editingChordId === ch.id;
           return (
             <Pressable
@@ -932,7 +933,7 @@ const styles = StyleSheet.create({
   },
   lineScrollContainer: {
     width: '100%',
-    paddingRight: 100,
+    paddingRight: 160,
     ...(Platform.OS === 'web' ? {
       overflow: 'auto',
     } : {}),
