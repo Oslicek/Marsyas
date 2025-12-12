@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { LayoutChangeEvent, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Slider from '@react-native-community/slider';
 
@@ -25,8 +25,6 @@ interface WysiwygEditorProps {
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.0;
 const ZOOM_STEP = 0.1;
-const EDIT_PANEL_HEIGHT = 320; // Height of the chord edit panel + safe area
-
 export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps) {
   const initialSong = useMemo(() => toEditableSong(parseChordPro(content)), [content]);
   const initialChordProRef = useRef(content);
@@ -526,6 +524,75 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       + Chord
                     </Text>
                   </Pressable>
+
+                  {editingChord && editingChord.sectionId === section.id && editingChord.lineId === line.id && (
+                    (() => {
+                      const targetChord = line.chords.find((c) => c.id === editingChord.chordId);
+                      const chordText = targetChord?.chord ?? editingChord.chord;
+                      const chordPosition = targetChord?.position ?? editingChord.position ?? 0;
+                      const maxPosition = line.lyrics.length;
+                      return (
+                        <View style={[styles.inlinePanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
+                          <View style={styles.panelHeader}>
+                            <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
+                            <Pressable onPress={() => setEditingChord(null)}>
+                              <Text style={styles.doneButton}>Done</Text>
+                            </Pressable>
+                          </View>
+
+                          <View style={styles.panelContent}>
+                            <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000' }]}>Chord Name</Text>
+                            <TextInput
+                              style={[
+                                styles.chordNameInput,
+                                {
+                                  color: isDark ? '#fff' : '#000',
+                                  backgroundColor: isDark ? '#2c2c2e' : '#f5f5f5',
+                                },
+                              ]}
+                              value={chordText}
+                              onChangeText={(text) => {
+                                updateChordText(section.id, line.id, editingChord.chordId, text);
+                                setEditingChord({ ...editingChord, chord: text });
+                              }}
+                              autoFocus
+                              selectTextOnFocus
+                              autoCapitalize="characters"
+                              autoCorrect={false}
+                            />
+
+                            <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
+                              Position: {chordPosition} / {maxPosition}
+                            </Text>
+                            <Slider
+                              style={styles.positionSlider}
+                              value={chordPosition}
+                              minimumValue={0}
+                              maximumValue={maxPosition}
+                              step={1}
+                              minimumTrackTintColor="#007AFF"
+                              maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
+                              thumbTintColor="#007AFF"
+                              onValueChange={(value) => {
+                                setChordPosition(section.id, line.id, editingChord.chordId, Math.round(value));
+                                setEditingChord({ ...editingChord, position: Math.round(value) });
+                              }}
+                            />
+
+                            <Pressable
+                              style={styles.deleteButton}
+                              onPress={() => {
+                                deleteChord(section.id, line.id, editingChord.chordId);
+                                setEditingChord(null);
+                              }}
+                            >
+                              <Text style={styles.deleteButtonText}>Delete Chord</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      );
+                    })()
+                  )}
                 </View>
               );
             })}
@@ -541,76 +608,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
         </View>
       )}
 
-      {/* Chord Edit Panel */}
-      {editingChord && (() => {
-        console.log('Edit panel rendering for chord:', editingChord);
-        return (
-          <View style={[styles.editPanel, { backgroundColor: isDark ? '#1c1c1e' : '#fff' }]}>
-            <View style={styles.panelHeader}>
-              <Text style={[styles.panelTitle, { color: isDark ? '#fff' : '#000' }]}>Edit Chord</Text>
-              <Pressable onPress={() => setEditingChord(null)}>
-                <Text style={styles.doneButton}>Done</Text>
-              </Pressable>
-            </View>
-
-          <View style={styles.panelContent}>
-            <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000' }]}>Chord Name</Text>
-            <TextInput
-              style={[
-                styles.chordNameInput,
-                {
-                  color: isDark ? '#fff' : '#000',
-                  backgroundColor: isDark ? '#2c2c2e' : '#f5f5f5',
-                },
-              ]}
-              value={editingChord?.chord || ''}
-              onChangeText={(text) => {
-                if (editingChord) {
-                  updateChordText(editingChord.sectionId, editingChord.lineId, editingChord.chordId, text);
-                  setEditingChord({ ...editingChord, chord: text });
-                }
-              }}
-              autoFocus
-              selectTextOnFocus
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-
-            <Text style={[styles.panelLabel, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
-              Position: {editingChord?.position || 0} / {editingChord?.maxPosition || 0}
-            </Text>
-            <Slider
-              style={styles.positionSlider}
-              value={editingChord?.position || 0}
-              minimumValue={0}
-              maximumValue={editingChord?.maxPosition || 0}
-              step={1}
-              minimumTrackTintColor="#007AFF"
-              maximumTrackTintColor={isDark ? '#3a3a3c' : '#d1d1d6'}
-              thumbTintColor="#007AFF"
-              onValueChange={(value) => {
-                if (editingChord) {
-                  setChordPosition(editingChord.sectionId, editingChord.lineId, editingChord.chordId, Math.round(value));
-                  setEditingChord({ ...editingChord, position: Math.round(value) });
-                }
-              }}
-            />
-
-            <Pressable
-              style={styles.deleteButton}
-              onPress={() => {
-                if (editingChord) {
-                  deleteChord(editingChord.sectionId, editingChord.lineId, editingChord.chordId);
-                  setEditingChord(null);
-                }
-              }}
-            >
-              <Text style={styles.deleteButtonText}>Delete Chord</Text>
-            </Pressable>
-          </View>
-        </View>
-        );
-      })()}
     </View>
   );
 }
@@ -1072,6 +1069,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  inlinePanel: {
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(150,150,150,0.2)',
+    overflow: 'hidden',
   },
 });
 
