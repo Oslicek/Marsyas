@@ -4,9 +4,6 @@
  */
 import { EditableSong, fromEditableSong, toEditableSong } from './editable-song';
 import { parseChordPro } from './chordpro-parser';
-import { EditableSong } from './editable-song';
-import { fromEditableSong, toEditableSong } from './editable-song';
-import { parseChordPro } from './chordpro-parser';
 // All note names in order (using sharps)
 const NOTES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 // All note names in order (using flats)
