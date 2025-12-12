@@ -191,10 +191,38 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             // Calculate visible area (viewport minus panel at bottom)
             const visibleArea = scrollViewHeight - EDIT_PANEL_HEIGHT;
             
-            // We want the line to appear at 20% from the top of the visible area
-            // This means: after scrolling, line should be at position (visibleArea * 0.2) from viewport top
-            // So: targetScrollTop = lineOffsetTop - (visibleArea * 0.2)
-            const targetScrollY = lineOffsetTop - (visibleArea * 0.2);
+            // Check current position of line relative to viewport
+            const lineTopInViewport = lineOffsetTop - currentScrollTop;
+            const lineBottomInViewport = lineTopInViewport + 50; // Assume ~50px line height
+            
+            // Check if line is currently visible in the available space (above the panel)
+            const isLineVisible = lineTopInViewport >= 0 && lineBottomInViewport <= visibleArea;
+            const isLineTooLow = lineBottomInViewport > visibleArea; // Hidden by panel or below
+            const isLineTooHigh = lineTopInViewport < 0; // Above viewport
+            
+            console.log('[Web] Visibility check:', {
+              lineTopInViewport,
+              lineBottomInViewport,
+              visibleArea,
+              isLineVisible,
+              isLineTooLow,
+              isLineTooHigh,
+            });
+            
+            let targetScrollY;
+            
+            if (isLineVisible) {
+              // Line is already visible - don't scroll
+              console.log('[Web] Line already visible, no scroll needed');
+              targetScrollY = currentScrollTop;
+            } else if (isLineTooHigh) {
+              // Line is above viewport - scroll up to show it at 30% from top
+              targetScrollY = lineOffsetTop - (visibleArea * 0.3);
+            } else {
+              // Line is too low (hidden by panel or below) - scroll down to show it at 30% from top
+              targetScrollY = lineOffsetTop - (visibleArea * 0.3);
+            }
+            
             const clampedTargetScrollY = Math.max(0, Math.min(targetScrollY, scrollHeight - clientHeight));
             
             console.log('[Web] Scroll calculation:', {
