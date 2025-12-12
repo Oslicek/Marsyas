@@ -195,12 +195,19 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
 
   const addLineBelow = useCallback((sectionId: string, lineId: string) => {
     const newLineId = `line-${Date.now()}-${Math.random()}`;
+    console.log('addLineBelow called:', sectionId, lineId, '->', newLineId);
     setSong((prev) => ({
       ...prev,
       sections: prev.sections.map((section) => {
         if (section.id !== sectionId) return section;
         const idx = section.lines.findIndex((l) => l.id === lineId);
-        if (idx === -1) return section;
+        if (idx === -1) {
+          console.warn('addLineBelow: line not found, appending to end', lineId);
+          return {
+            ...section,
+            lines: [...section.lines, { id: newLineId, lyrics: '', chords: [] as EditableChord[] }],
+          };
+        }
         const newLine = { id: newLineId, lyrics: '', chords: [] as EditableChord[] };
         const newLines = [...section.lines];
         newLines.splice(idx + 1, 0, newLine);
@@ -209,10 +216,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     }));
     setEditingChord(null);
     setFocusedLine({ sectionId, lineId: newLineId });
-    // Ensure visibility of newly added line
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 50);
   }, []);
 
   const deleteChord = useCallback((sectionId: string, lineId: string, chordId: string) => {
@@ -555,7 +558,10 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                       </Pressable>
 
                       <Pressable
-                        onPress={() => addLineBelow(section.id, line.id)}
+                        onPress={() => {
+                          console.log('Add line pressed:', section.id, line.id);
+                          addLineBelow(section.id, line.id);
+                        }}
                         style={[
                           styles.addLineButton,
                           {
@@ -979,7 +985,7 @@ const styles = StyleSheet.create({
   addLineButton: {
     position: 'absolute',
     right: 8,
-    bottom: -30,
+    bottom: 0,
     zIndex: 9,
     borderRadius: 6,
     backgroundColor: '#555',
