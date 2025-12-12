@@ -191,6 +191,7 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
     };
     console.log('Setting editingChord:', newEditingChord);
     setEditingChord(newEditingChord);
+    setFocusedLine({ sectionId, lineId });
   }, [song]);
 
   const addLineBelow = useCallback((sectionId: string, lineId: string) => {
@@ -440,96 +441,72 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
             )}
 
             {section.lines.map((line) => {
-              // Show lyrics input when there are lyrics OR when the line is brand new/empty (no chords)
-              const hasLyrics = line.lyrics.trim().length > 0 || (line.lyrics.trim().length === 0 && line.chords.length === 0);
               return (
                 <View 
                   key={line.id} 
                   style={styles.lineBlock}
                   onLayout={(e) => handleLineLayout(section.id, line.id, e)}
                 >
-                  {hasLyrics ? (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={true}
-                      style={styles.lineScrollContainer}
-                      contentContainerStyle={styles.lineScrollContent}
-                    >
-                      <View style={[
-                        styles.lyricsWrapper,
-                        { paddingTop: (CHORD_OVERLAY_HEIGHT + CHORD_OVERLAY_PADDING) * zoomScale }
-                      ]}>
-                        <InteractiveChordOverlay
-                          chords={line.chords}
-                          lyrics={line.lyrics}
-                          lineWidth={lineWidths[line.id]}
-                          sectionId={section.id}
-                          lineId={line.id}
-                          isDark={isDark}
-                          zoomScale={zoomScale}
-                          editingChordId={editingChord?.chordId}
-                          onChordPress={(ch) => {
-                            setEditingChord({
-                              sectionId: section.id,
-                              lineId: line.id,
-                              chordId: ch.id,
-                              chord: ch.chord,
-                              position: ch.position,
-                              maxPosition: line.lyrics.length,
-                            });
-                          }}
-                        />
-                        <TextInput
-                          style={[
-                            styles.lyricsInput,
-                            {
-                              color: isDark ? '#fff' : '#000',
-                              backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
-                              fontFamily: EDIT_FONT_FAMILY,
-                              fontSize: EDIT_FONT_SIZE * zoomScale,
-                              lineHeight: EDIT_LINE_HEIGHT * zoomScale,
-                              minWidth: '100%',
-                            },
-                          ]}
-                          multiline={false}
-                          value={line.lyrics}
-                          onChangeText={(text) => updateLyrics(section.id, line.id, text)}
-                          placeholder="Lyrics..."
-                          placeholderTextColor={isDark ? '#666' : '#999'}
-                          onLayout={(e) => {
-                            const layout = e?.nativeEvent?.layout;
-                            if (!layout) return;
-                            setLineWidths((prev) => ({
-                              ...prev,
-                              [line.id]: layout.width,
-                            }));
-                          }}
-                      onFocus={() => setFocusedLine({ sectionId: section.id, lineId: line.id })}
-                        />
-                      </View>
-                    </ScrollView>
-                  ) : (
-                    <ChordRow
-                      chords={line.chords}
-                      line={line}
-                      sectionId={section.id}
-                      lineId={line.id}
-                      editingChordId={editingChord?.chordId}
-                      onChordPress={(ch) => {
-                        setEditingChord({
-                          sectionId: section.id,
-                          lineId: line.id,
-                          chordId: ch.id,
-                          chord: ch.chord,
-                          position: ch.position,
-                          maxPosition: line.lyrics.length + EXTRA_CHORD_TAIL_CHARS,
-                          maxPosition: line.lyrics.length + EXTRA_CHORD_TAIL_CHARS,
-                        });
-                      }}
-                      isDark={isDark}
-                      zoomScale={zoomScale}
-                    />
-                  )}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={true}
+                    style={styles.lineScrollContainer}
+                    contentContainerStyle={styles.lineScrollContent}
+                  >
+                    <View style={[
+                      styles.lyricsWrapper,
+                      { paddingTop: (CHORD_OVERLAY_HEIGHT + CHORD_OVERLAY_PADDING) * zoomScale }
+                    ]}>
+                      <InteractiveChordOverlay
+                        chords={line.chords}
+                        lyrics={line.lyrics}
+                        lineWidth={lineWidths[line.id]}
+                        sectionId={section.id}
+                        lineId={line.id}
+                        isDark={isDark}
+                        zoomScale={zoomScale}
+                        editingChordId={editingChord?.chordId}
+                        onChordPress={(ch) => {
+                          setEditingChord({
+                            sectionId: section.id,
+                            lineId: line.id,
+                            chordId: ch.id,
+                            chord: ch.chord,
+                            position: ch.position,
+                            maxPosition: line.lyrics.length + EXTRA_CHORD_TAIL_CHARS,
+                          });
+                          setFocusedLine({ sectionId: section.id, lineId: line.id });
+                        }}
+                      />
+                      <TextInput
+                        style={[
+                          styles.lyricsInput,
+                          {
+                            color: isDark ? '#fff' : '#000',
+                            backgroundColor: isDark ? '#1c1c1e' : '#f5f5f5',
+                            fontFamily: EDIT_FONT_FAMILY,
+                            fontSize: EDIT_FONT_SIZE * zoomScale,
+                            lineHeight: EDIT_LINE_HEIGHT * zoomScale,
+                            minWidth: '100%',
+                          },
+                        ]}
+                        multiline={false}
+                        value={line.lyrics}
+                        onChangeText={(text) => updateLyrics(section.id, line.id, text)}
+                        placeholder="Lyrics..."
+                        placeholderTextColor={isDark ? '#666' : '#999'}
+                        onLayout={(e) => {
+                          const layout = e?.nativeEvent?.layout;
+                          if (!layout) return;
+                          setLineWidths((prev) => ({
+                            ...prev,
+                            [line.id]: layout.width,
+                          }));
+                        }}
+                        onFocus={() => setFocusedLine({ sectionId: section.id, lineId: line.id })}
+                      />
+                    </View>
+                  </ScrollView>
 
                   {focusedLine?.sectionId === section.id && focusedLine?.lineId === line.id && (
                     <>
