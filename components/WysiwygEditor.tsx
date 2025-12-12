@@ -5,6 +5,7 @@ import Slider from '@react-native-community/slider';
 
 import { Text } from './Themed';
 import { EditableChord, EditableLine, EditableSection, EditableSong, fromEditableSong, insertChordsIntoLine, toEditableSong } from '@/services/editable-song';
+import { copyChordsToSections } from '@/services/chord-copy';
 import { parseChordPro } from '@/services/chordpro-parser';
 import { useColorScheme } from './useColorScheme';
 
@@ -367,6 +368,12 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
     onSave(serialized);
   }, [onSave, serialized]);
 
+  const handleCopyChords = useCallback(() => {
+    const copied = copyChordsToSections(serialized);
+    const parsed = toEditableSong(parseChordPro(copied));
+    setSong(parsed);
+  }, [serialized]);
+
   const handleZoomIn = useCallback(() => {
     setZoomScale((prev) => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
   }, []);
@@ -441,6 +448,10 @@ export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: Wy
         </Pressable>
         <Text style={styles.title}>WYSIWYG Editor {hasChanges ? '•' : ''}</Text>
         
+        <Pressable onPress={handleCopyChords} style={styles.toolbarButton}>
+          <Text style={styles.toolText}>Copy Chords</Text>
+        </Pressable>
+
         {/* Zoom controls */}
         <View style={styles.zoomControls}>
           <Pressable
@@ -938,6 +949,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '600' },
   cancel: { fontSize: 16, color: '#FF3B30' },
   save: { fontSize: 16, fontWeight: '600', color: '#007AFF', textAlign: 'right' },
+  toolText: { fontSize: 14, color: '#007AFF', fontWeight: '600' },
   disabledButton: { opacity: 0.5 },
   disabledText: { color: '#999' },
   zoomControls: {
