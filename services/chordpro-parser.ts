@@ -165,9 +165,11 @@ export function parseChordPro(content: string): ParsedSong {
       continue;
     }
 
-    // Empty line - keep as an empty line in the current section
+    // Empty line - keep it inside a section; ignore leading empties before any content
     if (trimmed === '') {
-      currentSection.lines.push({ lyrics: '', chords: [] });
+      if (inSection || currentSection.lines.length > 0) {
+        currentSection.lines.push({ lyrics: '', chords: [] });
+      }
       continue;
     }
 

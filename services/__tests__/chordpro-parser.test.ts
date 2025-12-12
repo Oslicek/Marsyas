@@ -207,6 +207,16 @@ describe('ChordPro Parser', () => {
       expect(result.sections[0].lines[0].chords).toEqual([{ chord: 'C', position: 0 }]);
       expect(result.sections[0].lines[3].lyrics).toBe('Hello');
     });
+
+    it('should ignore leading empty lines before any content', () => {
+      const input = `
+
+[C]Hello`;
+      const result = parseChordPro(input);
+      expect(result.sections.length).toBe(1);
+      expect(result.sections[0].lines.length).toBe(1);
+      expect(result.sections[0].lines[0].lyrics).toBe('Hello');
+    });
   });
 });
 
