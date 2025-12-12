@@ -28,12 +28,13 @@ interface WysiwygEditorProps {
   content: string;
   onSave: (content: string) => void;
   onCancel: () => void;
+  onContentChange?: (content: string) => void;
 }
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.0;
 const ZOOM_STEP = 0.1;
-export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps) {
+export function WysiwygEditor({ content, onSave, onCancel, onContentChange }: WysiwygEditorProps) {
   const initialSong = useMemo(() => toEditableSong(parseChordPro(content)), [content]);
   const initialChordProRef = useRef(content);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -63,6 +64,11 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
   const [focusedLine, setFocusedLine] = useState<{ sectionId: string; lineId: string } | null>(null);
 
   const serialized = useMemo(() => fromEditableSong(song), [song]);
+  useEffect(() => {
+    if (onContentChange) {
+      onContentChange(serialized);
+    }
+  }, [serialized, onContentChange]);
   const hasChanges = serialized !== initialChordProRef.current;
   const isDark = useColorScheme() === 'dark';
 

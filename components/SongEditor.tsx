@@ -9,6 +9,7 @@ interface SongEditorProps {
   content: string;
   onSave: (content: string) => void;
   onCancel: () => void;
+  onContentChange?: (content: string) => void;
 }
 
 const MIN_ZOOM = 0.5;
@@ -20,7 +21,7 @@ const BASE_LINE_HEIGHT = 22;
 /**
  * Editor component for editing raw ChordPro content
  */
-export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
+export function SongEditor({ content, onSave, onCancel, onContentChange }: SongEditorProps) {
   const [editedContent, setEditedContent] = useState(content);
   const [hasChanges, setHasChanges] = useState(false);
   const [zoomScale, setZoomScale] = useState(1.0);
@@ -30,6 +31,12 @@ export function SongEditor({ content, onSave, onCancel }: SongEditorProps) {
   useEffect(() => {
     setHasChanges(editedContent !== content);
   }, [editedContent, content]);
+
+  useEffect(() => {
+    if (onContentChange) {
+      onContentChange(editedContent);
+    }
+  }, [editedContent, onContentChange]);
 
   const handleSave = useCallback(() => {
     onSave(editedContent);

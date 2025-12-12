@@ -30,6 +30,7 @@ export default function SongScreen() {
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editMode, setEditMode] = useState<EditMode>('wysiwyg');
+  const [draftContent, setDraftContent] = useState<string | null>(null);
   const [transpose, setTranspose] = useState(0);
   const [zoomScale, setZoomScale] = useState(DEFAULT_ZOOM);
   const savedScale = useSharedValue(DEFAULT_ZOOM);
@@ -49,9 +50,10 @@ export default function SongScreen() {
     if (isNewSong) {
       setIsEditing(true);
       setEditMode('wysiwyg');
+      setDraftContent(songContent ?? '');
       clearNewSongFlag();
     }
-  }, [isNewSong, clearNewSongFlag]);
+  }, [isNewSong, clearNewSongFlag, songContent]);
 
   // Exit edit mode when a different song is selected
   useEffect(() => {
@@ -101,7 +103,8 @@ export default function SongScreen() {
     setIsScrolling(false);
     setIsEditing(true);
     setEditMode('wysiwyg');
-  }, []);
+    setDraftContent(songContent ?? '');
+  }, [songContent]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
@@ -127,6 +130,24 @@ export default function SongScreen() {
       console.error('Failed to save song:', err);
     }
   }, [songFilename, updateSong]);
+
+  const persistDraft = useCallback(async () => {
+    if (!songFilename || draftContent == null || draftContent === songContent) return;
+    try {
+      const service = createSongStorageService();
+      const newFilename = await service.saveSongWithRename(songFilename, draftContent);
+      const parsedSong = parseChordPro(draftContent);
+      updateSong(parsedSong, draftContent, newFilename);
+    } catch (err) {
+      console.error('Failed to persist draft on mode switch:', err);
+    }
+  }, [draftContent, songContent, songFilename, updateSong]);
+
+  const handleModeSwitch = useCallback(async (nextMode: EditMode) => {
+    if (editMode === nextMode) return;
+    await persistDraft();
+    setEditMode(nextMode);
+  }, [editMode, persistDraft]);
 
   const handleTransposeUp = useCallback(() => {
     setTranspose((prev) => (prev + 1) % 12);
@@ -216,7 +237,7 @@ export default function SongScreen() {
           <View style={styles.modeToggle}>
             <Pressable
               style={[styles.modeButton, editMode === 'wysiwyg' && styles.modeButtonActive]}
-              onPress={() => setEditMode('wysiwyg')}
+              onPress={() => handleModeSwitch('wysiwyg')}
             >
               <Text style={[styles.modeButtonText, editMode === 'wysiwyg' && styles.modeButtonTextActive]}>
                 WYSIWYG
@@ -224,7 +245,7 @@ export default function SongScreen() {
             </Pressable>
             <Pressable
               style={[styles.modeButton, editMode === 'raw' && styles.modeButtonActive]}
-              onPress={() => setEditMode('raw')}
+              onPress={() => handleModeSwitch('raw')}
             >
               <Text style={[styles.modeButtonText, editMode === 'raw' && styles.modeButtonTextActive]}>
                 Raw
@@ -237,6 +258,7 @@ export default function SongScreen() {
               content={songContent} 
               onSave={handleSave} 
               onCancel={handleCancel} 
+              onContentChange={(c) => setDraftContent(c)}
             />
           ) : (
             <SongEditor 
@@ -244,6 +266,7 @@ export default function SongScreen() {
               content={songContent} 
               onSave={handleSave} 
               onCancel={handleCancel} 
+              onContentChange={(c) => setDraftContent(c)}
             />
           )}
         </View>
