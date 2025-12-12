@@ -89,12 +89,8 @@ export function fromEditableSong(song: EditableSong): string {
 
   if (lines.length > 0) lines.push(''); // blank line after metadata
 
-  song.sections.forEach((section, idx) => {
+  song.sections.forEach((section) => {
     emitSection(lines, section);
-    if (idx < song.sections.length - 1) {
-      // keep a blank line between sections for readability
-      lines.push('');
-    }
   });
 
   return lines.join('\n');
