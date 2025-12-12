@@ -17,6 +17,7 @@ const CHORD_OVERLAY_HEIGHT = EDIT_FONT_SIZE + 12;
 const CHORD_OVERLAY_PADDING = 6;
 const EXTRA_CHORD_TAIL_CHARS = 20; // allow chords after end of line
 const EXTRA_EMPTY_LINE_TAIL_CHARS = 40; // more room when lyrics are empty
+const EMPTY_CHAR_WIDTH = 12; // px per char on empty lines to spread chords
 
 function getMaxPositionForLine(line: EditableLine): number {
   const hasLyrics = line.lyrics.trim().length > 0;
@@ -667,6 +668,8 @@ function ChordRow({
   isDark: boolean;
   zoomScale: number;
 }) {
+  const hasLyrics = line.lyrics.trim().length > 0;
+  const maxPosition = getMaxPositionForLine(line);
   return (
     <View style={styles.chordRow}>
       {chords.map((ch) => {
@@ -732,7 +735,11 @@ function computePositionInLine(
   lyrics: string
 ): number {
   const relX = Math.max(0, x - bounds.left); // allow beyond current width
-  const charWidth = bounds.width / Math.max(lyrics.length, 1);
+  const lyricsLen = lyrics.length;
+  const charWidth =
+    lyricsLen > 0
+      ? bounds.width / Math.max(lyricsLen, 1)
+      : EMPTY_CHAR_WIDTH;
   return Math.round(relX / charWidth);
 }
 
@@ -748,9 +755,10 @@ function ChordOverlay({
   isDark: boolean;
 }) {
   if (!lineWidth || chords.length === 0) return null;
-  const baseCharCount = Math.max(lyrics.length, 1);
-  const baseCharWidth = lineWidth / baseCharCount;
-  const tail = lyrics.trim().length > 0 ? EXTRA_CHORD_TAIL_CHARS : EXTRA_EMPTY_LINE_TAIL_CHARS;
+  const hasLyrics = lyrics.trim().length > 0;
+  const baseCharCount = hasLyrics ? Math.max(lyrics.length, 1) : 1;
+  const baseCharWidth = hasLyrics ? lineWidth / baseCharCount : EMPTY_CHAR_WIDTH;
+  const tail = hasLyrics ? EXTRA_CHORD_TAIL_CHARS : EXTRA_EMPTY_LINE_TAIL_CHARS;
 
   return (
     <View style={styles.chordOverlayRow}>
@@ -789,10 +797,15 @@ function InteractiveChordOverlay({
 }) {
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
   const textStartOffset = LYRICS_PADDING + LYRICS_BORDER;
-  const baseContentWidth = measuredWidth ?? (lineWidth ? Math.max(lineWidth - textStartOffset * 2, 1) : 0);
-  const baseCharCount = Math.max(lyrics.length, 1);
-  const baseCharWidth = baseContentWidth / baseCharCount;
-  const tail = lyrics.trim().length > 0 ? EXTRA_CHORD_TAIL_CHARS : EXTRA_EMPTY_LINE_TAIL_CHARS;
+  const hasLyrics = lyrics.trim().length > 0;
+  const baseContentWidth =
+    measuredWidth ??
+    (lineWidth ? Math.max(lineWidth - textStartOffset * 2, 1) : 0);
+  const baseCharCount = hasLyrics ? Math.max(lyrics.length, 1) : 1;
+  const baseCharWidth = hasLyrics
+    ? baseContentWidth / baseCharCount
+    : EMPTY_CHAR_WIDTH;
+  const tail = hasLyrics ? EXTRA_CHORD_TAIL_CHARS : EXTRA_EMPTY_LINE_TAIL_CHARS;
   const totalContentWidth = baseContentWidth + baseCharWidth * tail;
 
   const scaledOverlayHeight = CHORD_OVERLAY_HEIGHT * zoomScale;
