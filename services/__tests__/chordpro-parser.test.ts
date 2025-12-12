@@ -191,7 +191,7 @@ describe('ChordPro Parser', () => {
       const result = parseChordPro(input);
 
       expect(result.sections.length).toBe(1);
-      expect(result.sections[0].lines.length).toBe(5); // Line1, empty, empty, Line2
+      expect(result.sections[0].lines.length).toBe(4); // Line1, empty, empty, Line2
       expect(result.sections[0].lines[1].lyrics).toBe('');
       expect(result.sections[0].lines[2].lyrics).toBe('');
     });

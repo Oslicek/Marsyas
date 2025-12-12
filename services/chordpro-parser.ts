@@ -119,9 +119,6 @@ export function parseChordPro(content: string): ParsedSong {
       for (let i = 0; i < pendingBlankCount; i++) {
         currentSection.lines.push({ lyrics: '', chords: [] });
       }
-      if (pendingBlankCount > 1) {
-        currentSection.lines.push({ lyrics: '', chords: [] });
-      }
     }
 
     pendingBlankCount = 0;
