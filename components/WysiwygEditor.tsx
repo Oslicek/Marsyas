@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
   },
   addLineButton: {
     position: 'absolute',
-    right: 8,
+    right: 88, // place to the left of +Chord to avoid overlap
     top: 0,
     zIndex: 10,
     borderRadius: 8,
