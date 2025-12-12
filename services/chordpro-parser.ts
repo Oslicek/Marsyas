@@ -94,6 +94,38 @@ export function parseChordPro(content: string): ParsedSong {
   };
 
   let inSection = false;
+  let pendingBlankCount = 0;
+
+  const lastLineHasLyrics = () =>
+    currentSection.lines.length > 0 &&
+    currentSection.lines[currentSection.lines.length - 1].lyrics.trim().length > 0;
+
+  const flushPendingBlanks = (nextLineHasLyrics: boolean = false, forceKeep: boolean = false) => {
+    if (pendingBlankCount === 0) return;
+
+    const shouldBreakSection =
+      !inSection &&
+      currentSection.type === 'none' &&
+      currentSection.lines.length > 0 &&
+      pendingBlankCount === 1 &&
+      lastLineHasLyrics() &&
+      nextLineHasLyrics &&
+      !forceKeep;
+
+    if (shouldBreakSection) {
+      song.sections.push(currentSection);
+      currentSection = { type: 'none', lines: [] };
+    } else if (inSection || currentSection.lines.length > 0) {
+      for (let i = 0; i < pendingBlankCount; i++) {
+        currentSection.lines.push({ lyrics: '', chords: [] });
+      }
+      if (pendingBlankCount > 1) {
+        currentSection.lines.push({ lyrics: '', chords: [] });
+      }
+    }
+
+    pendingBlankCount = 0;
+  };
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
@@ -106,6 +138,7 @@ export function parseChordPro(content: string): ParsedSong {
     // Check for directive
     const directive = parseDirective(trimmed);
     if (directive) {
+      flushPendingBlanks(false);
       const [name, value] = directive;
       const normalizedName = normalizeDirective(name);
 
@@ -133,7 +166,6 @@ export function parseChordPro(content: string): ParsedSong {
 
       // Handle section start directives
       if (normalizedName.startsWith('start_of_')) {
-        // Save current section if it has content
         if (currentSection.lines.length > 0) {
           song.sections.push(currentSection);
         }
@@ -165,18 +197,23 @@ export function parseChordPro(content: string): ParsedSong {
       continue;
     }
 
-    // Empty line - keep it inside a section; ignore leading empties before any content
+    // Empty line
     if (trimmed === '') {
-      if (inSection || currentSection.lines.length > 0) {
-        currentSection.lines.push({ lyrics: '', chords: [] });
-      }
+      pendingBlankCount += 1;
       continue;
     }
 
-    // Regular line with lyrics/chords
+    // Non-empty line: first flush pending blanks, with knowledge of next line lyrics
     const parsedLine = parseLine(rawLine);
+    const nextHasLyrics = parsedLine.lyrics.trim().length > 0;
+    flushPendingBlanks(nextHasLyrics);
+
+    // Regular line with lyrics/chords
     currentSection.lines.push(parsedLine);
   }
+
+  // Flush any trailing blanks inside a section
+  flushPendingBlanks(false, true);
 
   // Add final section if it has content
   if (currentSection.lines.length > 0) {
