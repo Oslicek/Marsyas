@@ -497,7 +497,6 @@ export function WysiwygEditor({ content, onSave, onCancel }: WysiwygEditorProps)
                             }));
                           }}
                       onFocus={() => setFocusedLine({ sectionId: section.id, lineId: line.id })}
-                      onBlur={() => setFocusedLine((prev) => (prev?.lineId === line.id ? null : prev))}
                         />
                       </View>
                     </ScrollView>
